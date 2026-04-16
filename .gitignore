@@ -1,2 +1,5 @@
 /.venv
-sample/microlearning.db
+
+/.env
+/__pycache__/
+/*.pyc

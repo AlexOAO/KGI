@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KGI 法遵合規微學習平台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  .screen { display: none !important; }
+  .screen.active { display: block !important; }
+  .screen-login-inner { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card-fade { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .timer-urgent { color: #ef4444; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .comp-panel.hidden { display: none; }
+</style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+
+<!-- NAV -->
+<nav id="nav" class="hidden bg-gray-900 border-b border-gray-700 px-6 py-3 flex items-center justify-between">
+  <span class="font-bold text-blue-400">KGI 法遵合規微學習平台</span>
+  <div class="flex gap-3">
+    <button onclick="showScreen('modules')" class="text-sm px-3 py-1 rounded hover:bg-gray-700">模組</button>
+    <button onclick="showScreen('dashboard')" class="text-sm px-3 py-1 rounded hover:bg-gray-700">儀表板</button>
+    <button onclick="showScreen('compliance')" class="text-sm px-3 py-1 rounded hover:bg-gray-700">法遵搜尋</button>
+    <button onclick="doLogout()" class="text-sm px-3 py-1 rounded hover:bg-red-800 text-red-400">登出</button>
+  </div>
+</nav>
+
+<!-- TOAST -->
+<div id="toast" class="fixed top-4 right-4 z-50 hidden bg-blue-600 text-white px-4 py-2 rounded shadow-lg text-sm"></div>
+
+<!-- ===== SCREEN: LOGIN ===== -->
+<div id="screen-login" class="screen active">
+<div class="screen-login-inner">
+  <div class="bg-gray-900 rounded-2xl p-8 w-full max-w-sm shadow-2xl border border-gray-700">
+    <h1 class="text-2xl font-bold mb-2 text-center">KGI</h1>
+    <p class="text-gray-400 text-center mb-6 text-sm">法遵合規微學習平台</p>
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm text-gray-400">帳號</label>
+        <input id="login-user" type="text" value="learner1" class="w-full mt-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500">
+      </div>
+      <div>
+        <label class="text-sm text-gray-400">密碼</label>
+        <input id="login-pass" type="password" value="pass123" class="w-full mt-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500">
+      </div>
+      <p id="login-err" class="text-red-400 text-sm hidden"></p>
+      <button onclick="doLogin()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">登入</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== SCREEN: MODULES ===== -->
+<div id="screen-modules" class="screen max-w-4xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-2xl font-bold">學習模組</h2>
+    <span id="modules-due-badge" class="hidden bg-orange-600 text-white text-xs px-2 py-1 rounded-full">到期複習</span>
+  </div>
+  <div id="modules-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+</div>
+
+<!-- ===== SCREEN: PRE-SPRINT ===== -->
+<div id="screen-pre-sprint" class="screen max-w-2xl mx-auto px-4 py-12">
+  <div class="bg-gray-900 rounded-2xl p-8 border border-gray-700">
+    <div id="pre-tags" class="flex gap-2 mb-3 flex-wrap"></div>
+    <h2 id="pre-title" class="text-2xl font-bold mb-2"></h2>
+    <div class="bg-amber-900/40 border border-amber-600 rounded-lg p-4 mb-6 text-amber-300 text-sm">
+      <span id="pre-warning"></span>
+    </div>
+    <div class="flex gap-3">
+      <button onclick="showScreen('modules')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">返回</button>
+      <button onclick="startSprint()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">開始衝刺</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: READER ===== -->
+<div id="screen-reader" class="screen max-w-2xl mx-auto px-4 py-6">
+  <!-- Top bar -->
+  <div class="flex items-center justify-between mb-4 bg-gray-900 rounded-xl px-4 py-3">
+    <span id="reader-progress" class="text-sm text-gray-400">Card 1 of 5</span>
+    <span id="reader-topic" class="text-xs bg-blue-800 px-2 py-1 rounded-full"></span>
+    <span id="reader-timer" class="font-mono text-lg font-bold text-green-400">07:00</span>
+  </div>
+  <!-- Resume toast -->
+  <div id="reader-resume" class="hidden mb-3 bg-blue-900 border border-blue-600 text-blue-300 text-sm px-4 py-2 rounded-lg">
+    歡迎回來，計時器已恢復
+  </div>
+  <!-- Card -->
+  <div id="reader-card" class="card-fade bg-gray-900 rounded-2xl p-8 border border-gray-700 min-h-[280px] flex items-center">
+    <p id="reader-text" class="text-lg leading-relaxed"></p>
+  </div>
+  <!-- Progress bar -->
+  <div class="mt-4 bg-gray-700 rounded-full h-1">
+    <div id="reader-bar" class="bg-blue-500 h-1 rounded-full transition-all duration-300" style="width:0%"></div>
+  </div>
+  <!-- Next button -->
+  <div class="mt-4 flex justify-end">
+    <button id="reader-next-btn" onclick="nextCard()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">
+      下一張
+    </button>
+  </div>
+</div>
+
+<!-- ===== SCREEN: QUIZ ===== -->
+<div id="screen-quiz" class="screen max-w-2xl mx-auto px-4 py-8">
+  <div id="quiz-form">
+    <h2 class="text-2xl font-bold mb-2">模組測驗</h2>
+    <p class="text-gray-400 text-sm mb-6">請回答以下問題</p>
+    <div id="quiz-questions" class="space-y-6"></div>
+    <button onclick="submitQuiz()" class="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">提交答案</button>
+  </div>
+  <div id="quiz-result" class="hidden">
+    <div class="bg-gray-900 rounded-2xl p-8 border border-gray-700 text-center">
+      <div id="quiz-score-display" class="text-5xl font-bold mb-2"></div>
+      <div id="quiz-grade-display" class="text-xl mb-4"></div>
+      <p id="quiz-detail" class="text-gray-400 mb-6"></p>
+      <p class="text-sm text-gray-500 mb-6">複習時間已排程（SM-2 間隔複習）</p>
+      <div class="flex gap-3 justify-center">
+        <button onclick="showScreen('modules')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">回模組列表</button>
+        <button onclick="loadDashboard(); showScreen('dashboard')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm">查看儀表板</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: DASHBOARD ===== -->
+<div id="screen-dashboard" class="screen max-w-4xl mx-auto px-4 py-8">
+  <h2 class="text-2xl font-bold mb-6">學習儀表板</h2>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
+      <div id="dash-completed" class="text-4xl font-bold text-blue-400">0</div>
+      <div class="text-sm text-gray-400 mt-1">已完成模組</div>
+    </div>
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
+      <div id="dash-streak" class="text-4xl font-bold text-orange-400">0</div>
+      <div class="text-sm text-gray-400 mt-1">連續學習天數</div>
+    </div>
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-700 text-center">
+      <div id="dash-due" class="text-4xl font-bold text-green-400">0</div>
+      <div class="text-sm text-gray-400 mt-1">待複習主題</div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-700">
+      <h3 class="font-semibold mb-4">各主題掌握度</h3>
+      <canvas id="mastery-chart" height="200"></canvas>
+      <p id="no-mastery" class="text-gray-500 text-sm text-center py-8">尚無學習記錄</p>
+    </div>
+    <div class="bg-gray-900 rounded-xl p-5 border border-gray-700">
+      <h3 class="font-semibold mb-4">複習排程</h3>
+      <div id="reviews-list" class="space-y-2 text-sm"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: COMPLIANCE ===== -->
+<div id="screen-compliance" class="screen max-w-5xl mx-auto px-4 py-8">
+  <div class="flex items-baseline justify-between mb-6">
+    <h2 class="text-2xl font-bold">法遵資料庫</h2>
+    <span class="text-xs text-gray-500">共收錄 4 類法遵資料集</span>
+  </div>
+
+  <!-- Tabs with badges -->
+  <div class="flex gap-1 mb-0 border-b border-gray-700 flex-wrap">
+    <button class="comp-tab active px-4 py-2 text-sm border-b-2 border-blue-500 text-blue-400 flex items-center gap-2" onclick="setCompTab('penalties', this)">
+      裁罰案例 <span class="text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded">1116筆</span>
+    </button>
+    <button class="comp-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white flex items-center gap-2" onclick="setCompTab('regulations', this)">
+      函令法規 <span class="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">514筆</span>
+    </button>
+    <button class="comp-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white flex items-center gap-2" onclick="setCompTab('national', this)">
+      全國法規 <span class="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">50898條</span>
+    </button>
+    <button class="comp-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white flex items-center gap-2" onclick="setCompTab('fsc', this)">
+      主管法規 <span class="text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded">6142筆</span>
+    </button>
+  </div>
+
+  <!-- Tab panels for description + filters -->
+  <div class="bg-gray-800/50 border border-t-0 border-gray-700 rounded-b-lg px-5 py-4 mb-4">
+    <!-- Penalties panel -->
+    <div id="comp-panel-penalties" class="comp-panel">
+      <p class="text-gray-400 text-xs mb-3">金融監理機關對金融機構所作之裁罰案例，包含重大裁罰與一般裁罰。可依機構別或裁罰性質篩選，亦可關鍵字搜尋。</p>
+      <div class="flex flex-wrap gap-3 mb-3">
+        <select id="filter-pen-cat" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部裁罰類別</option>
+        </select>
+        <select id="filter-pen-inst" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部機構</option>
+        </select>
+      </div>
+    </div>
+    <!-- Regulations panel -->
+    <div id="comp-panel-regulations" class="comp-panel hidden">
+      <p class="text-gray-400 text-xs mb-3">金管會及相關機關發布之函令、解釋令與行政命令。可依發文機關分類，快速查找相關法令見解。</p>
+      <div class="flex flex-wrap gap-3">
+        <select id="filter-reg-cat" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部類別</option>
+        </select>
+      </div>
+    </div>
+    <!-- National panel -->
+    <div id="comp-panel-national" class="comp-panel hidden">
+      <p class="text-gray-400 text-xs mb-3">全國法規資料庫收錄之法律條文，含法律、憲法等不同層級。可依層級篩選，或直接輸入法規名稱查詢條文。</p>
+      <div class="flex flex-wrap gap-3">
+        <select id="filter-nat-level" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部層級</option>
+        </select>
+      </div>
+    </div>
+    <!-- FSC panel -->
+    <div id="comp-panel-fsc" class="comp-panel hidden">
+      <p class="text-gray-400 text-xs mb-3">金融監督管理委員會各局主管法規，含行政規則與法規命令。可依主管機構（保險局、銀行局、證期局）或法規體系分類查找。</p>
+      <div class="flex flex-wrap gap-3">
+        <select id="filter-fsc-inst" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部機構</option>
+        </select>
+        <select id="filter-fsc-sys" class="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded text-sm text-gray-200 focus:outline-none focus:border-blue-500">
+          <option value="">全部法規體系</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search bar -->
+  <div class="flex gap-2 mb-4">
+    <input id="comp-kw" type="text" placeholder="輸入關鍵字搜尋，或點選上方常見搜尋" class="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg focus:outline-none focus:border-blue-500 text-sm">
+    <button onclick="searchCompliance(1)" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold">搜尋</button>
+    <button onclick="clearFilters()" class="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm text-gray-300">清除</button>
+  </div>
+  <div id="comp-result-count" class="text-xs text-gray-500 mb-2 hidden"></div>
+  <div id="comp-results" class="space-y-2"></div>
+  <div id="comp-pagination" class="flex gap-2 mt-4 justify-center"></div>
+</div>
+
+<script>
+// ==================== STATE ====================
+const state = {
+  user: null,
+  currentModule: null,
+  flashcards: [],
+  cardIndex: 0,
+  sprintId: null,
+  timerRemaining: 420,
+  timerInterval: null,
+  tabSwitchCount: 0,
+  quizQuestions: [],
+  quizAnswers: {},
+  compTab: 'penalties',
+  compPage: 1,
+  compFiltersLoaded: false,
+  masteryChart: null,
+};
+
+// ==================== UTILS ====================
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'compliance') loadComplianceFilters();
+}
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), duration);
+}
+
+function fmt(s) {
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+async function api(method, path, body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api' + path, opts);
+  if (res.status === 401) { doLogoutUI(); return null; }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Error');
+  }
+  return res.json();
+}
+
+// ==================== AUTH ====================
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.classList.add('hidden');
+  try {
+    const data = await api('POST', '/login', { username, password });
+    if (!data) return;
+    state.user = data;
+    document.getElementById('nav').classList.remove('hidden');
+    await loadModules();
+    showScreen('modules');
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function doLogout() {
+  await api('POST', '/logout');
+  doLogoutUI();
+}
+
+function doLogoutUI() {
+  state.user = null;
+  document.getElementById('nav').classList.add('hidden');
+  showScreen('login');
+}
+
+// ==================== MODULES ====================
+async function loadModules() {
+  const modules = await api('GET', '/modules');
+  if (!modules) return;
+  const grid = document.getElementById('modules-grid');
+  grid.innerHTML = '';
+  let dueCount = 0;
+  modules.forEach(m => {
+    if (m.due_review) dueCount++;
+    const card = document.createElement('div');
+    card.className = 'bg-gray-900 rounded-xl p-5 border border-gray-700 hover:border-blue-500 cursor-pointer transition';
+    card.onclick = () => openPreSprint(m);
+    card.innerHTML = `
+      <div class="flex items-start justify-between mb-3">
+        <h3 class="font-semibold text-sm leading-tight">${m.title}</h3>
+        ${m.due_review ? '<span class="text-xs bg-orange-600 px-2 py-0.5 rounded-full ml-2 shrink-0">到期複習</span>' : ''}
+      </div>
+      <div class="flex flex-wrap gap-1 mb-3">
+        ${(m.topic_tag || '').split(' ').map(t => t ? `<span class="text-xs bg-gray-700 px-2 py-0.5 rounded-full">${t}</span>` : '').join('')}
+      </div>
+      <div class="text-xs text-gray-500">${Math.floor(m.duration_seconds / 60)} 分鐘 · 難度 ${m.difficulty_level}</div>
+    `;
+    grid.appendChild(card);
+  });
+  const badge = document.getElementById('modules-due-badge');
+  if (dueCount > 0) {
+    badge.textContent = `${dueCount} 個到期複習`;
+    badge.classList.remove('hidden');
+  }
+}
+
+// ==================== PRE-SPRINT ====================
+function openPreSprint(module) {
+  state.currentModule = module;
+  document.getElementById('pre-title').textContent = module.title;
+  const tagsEl = document.getElementById('pre-tags');
+  tagsEl.innerHTML = (module.topic_tag || '').split(' ').map(t => t ? `<span class="text-xs bg-blue-800 px-2 py-1 rounded-full">${t}</span>` : '').join('');
+  showScreen('pre-sprint');
+  // Fetch flashcard count
+  api('GET', `/modules/${module.id}`).then(data => {
+    if (!data) return;
+    state.flashcards = data.flashcards;
+    const count = data.flashcards.length;
+    document.getElementById('pre-warning').textContent =
+      `您有 7 分鐘閱讀 ${count} 張閃卡。閱讀結束後將立即進行測驗。`;
+  });
+}
+
+// ==================== SPRINT READER ====================
+async function startSprint() {
+  const data = await api('POST', '/sprint/start', { module_id: state.currentModule.id });
+  if (!data) return;
+  state.sprintId = data.sprint_id;
+  state.cardIndex = 0;
+  state.tabSwitchCount = 0;
+  state.timerRemaining = state.currentModule.duration_seconds || 420;
+  showScreen('reader');
+  renderCard();
+  startTimer();
+  setupVisibility();
+}
+
+function renderCard() {
+  const cards = state.flashcards;
+  const idx = state.cardIndex;
+  const total = cards.length;
+  document.getElementById('reader-progress').textContent = `Card ${idx + 1} of ${total}`;
+  document.getElementById('reader-topic').textContent = (state.currentModule.topic_tag || '').split(' ')[0] || '';
+  document.getElementById('reader-text').textContent = cards[idx]?.page_text || '';
+  document.getElementById('reader-bar').style.width = `${((idx + 1) / total) * 100}%`;
+  // Last card: change button text
+  const btn = document.getElementById('reader-next-btn');
+  btn.textContent = idx >= total - 1 ? '完成閱讀' : '下一張';
+  // Re-animate card
+  const card = document.getElementById('reader-card');
+  card.classList.remove('card-fade');
+  void card.offsetWidth;
+  card.classList.add('card-fade');
+}
+
+function nextCard() {
+  state.cardIndex++;
+  if (state.cardIndex >= state.flashcards.length) {
+    finishSprint('finished_early');
+  } else {
+    renderCard();
+  }
+}
+
+function startTimer() {
+  clearInterval(state.timerInterval);
+  updateTimerDisplay();
+  state.timerInterval = setInterval(() => {
+    state.timerRemaining--;
+    updateTimerDisplay();
+    if (state.timerRemaining <= 0) {
+      clearInterval(state.timerInterval);
+      finishSprint('timed_out');
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('reader-timer');
+  el.textContent = fmt(state.timerRemaining);
+  if (state.timerRemaining <= 60) el.classList.add('timer-urgent');
+  else el.classList.remove('timer-urgent');
+}
+
+function setupVisibility() {
+  // Remove previous listener if any
+  document.removeEventListener('visibilitychange', handleVisibility);
+  document.addEventListener('visibilitychange', handleVisibility);
+}
+
+function handleVisibility() {
+  if (document.visibilityState === 'hidden') {
+    clearInterval(state.timerInterval);
+    state.tabSwitchCount++;
+  } else {
+    const resume = document.getElementById('reader-resume');
+    resume.classList.remove('hidden');
+    setTimeout(() => resume.classList.add('hidden'), 3000);
+    startTimer();
+  }
+}
+
+async function finishSprint(status) {
+  clearInterval(state.timerInterval);
+  document.removeEventListener('visibilitychange', handleVisibility);
+  await api('POST', '/sprint/end', {
+    sprint_id: state.sprintId,
+    tab_switch_count: state.tabSwitchCount,
+    completion_status: status,
+  });
+  await loadQuiz();
+  showScreen('quiz');
+}
+
+// ==================== QUIZ ====================
+async function loadQuiz() {
+  const data = await api('GET', `/quiz/${state.currentModule.id}`);
+  if (!data) return;
+  state.quizQuestions = data.questions;
+  state.quizAnswers = {};
+  const container = document.getElementById('quiz-questions');
+  container.innerHTML = '';
+  data.questions.forEach((q, i) => {
+    const opts = q.options_json || [];
+    const div = document.createElement('div');
+    div.className = 'bg-gray-900 rounded-xl p-5 border border-gray-700';
+    div.innerHTML = `
+      <p class="font-medium mb-3"><span class="text-blue-400 mr-2">Q${i + 1}.</span>${q.prompt}</p>
+      <div class="space-y-2">
+        ${opts.map(opt => `
+          <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition">
+            <input type="radio" name="q${q.id}" value="${opt}" class="accent-blue-500">
+            <span class="text-sm">${opt}</span>
+          </label>
+        `).join('')}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+  document.getElementById('quiz-form').classList.remove('hidden');
+  document.getElementById('quiz-result').classList.add('hidden');
+}
+
+async function submitQuiz() {
+  const answers = {};
+  state.quizQuestions.forEach(q => {
+    const sel = document.querySelector(`input[name="q${q.id}"]:checked`);
+    answers[String(q.id)] = sel ? sel.value : '';
+  });
+  const data = await api('POST', '/quiz/submit', {
+    sprint_id: state.sprintId,
+    module_id: state.currentModule.id,
+    answers,
+  });
+  if (!data) return;
+  const score = data.score;
+  const grade = score >= 90 ? '優秀' : score >= 75 ? '良好' : score >= 60 ? '及格' : '需加強';
+  document.getElementById('quiz-score-display').textContent = score.toFixed(1) + ' 分';
+  document.getElementById('quiz-score-display').className = `text-5xl font-bold mb-2 ${score >= 60 ? 'text-green-400' : 'text-red-400'}`;
+  document.getElementById('quiz-grade-display').textContent = grade;
+  document.getElementById('quiz-detail').textContent = `答對 ${data.correct} / ${data.total} 題`;
+  document.getElementById('quiz-form').classList.add('hidden');
+  document.getElementById('quiz-result').classList.remove('hidden');
+}
+
+// ==================== DASHBOARD ====================
+async function loadDashboard() {
+  const data = await api('GET', '/dashboard');
+  if (!data) return;
+  document.getElementById('dash-completed').textContent = data.modules_completed;
+  document.getElementById('dash-streak').textContent = data.streak;
+  const dueCount = data.reviews.filter(r => new Date(r.next_review_at) <= new Date()).length;
+  document.getElementById('dash-due').textContent = dueCount;
+  // Mastery chart
+  const noMastery = document.getElementById('no-mastery');
+  if (data.mastery.length > 0) {
+    noMastery.style.display = 'none';
+    if (state.masteryChart) state.masteryChart.destroy();
+    const ctx = document.getElementById('mastery-chart').getContext('2d');
+    state.masteryChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.mastery.map(m => m.topic_tag.substring(0, 15)),
+        datasets: [{
+          label: '平均得分',
+          data: data.mastery.map(m => m.avg_score),
+          backgroundColor: 'rgba(59,130,246,0.7)',
+          borderColor: 'rgba(59,130,246,1)',
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { min: 0, max: 100, ticks: { color: '#9ca3af' }, grid: { color: '#374151' } },
+          x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  } else {
+    noMastery.style.display = 'block';
+  }
+  // Reviews table
+  const reviewsList = document.getElementById('reviews-list');
+  reviewsList.innerHTML = data.reviews.length === 0
+    ? '<p class="text-gray-500 text-sm text-center py-4">目前無待複習項目</p>'
+    : data.reviews.map(r => {
+        const isPast = new Date(r.next_review_at) <= new Date();
+        return `<div class="flex justify-between items-center py-2 border-b border-gray-700/50">
+          <span class="${isPast ? 'text-orange-400' : 'text-gray-300'}">${r.concept_tag}</span>
+          <span class="${isPast ? 'text-orange-400' : 'text-gray-500'}">${r.next_review_at}${isPast ? ' (到期)' : ''}</span>
+        </div>`;
+      }).join('');
+}
+
+// ==================== COMPLIANCE ====================
+function setCompTab(type, btn) {
+  state.compTab = type;
+  state.compPage = 1;
+  document.querySelectorAll('.comp-tab').forEach(t => {
+    t.classList.remove('border-blue-500', 'text-blue-400');
+    t.classList.add('border-transparent', 'text-gray-400');
+    // update badge color
+    const badge = t.querySelector('span');
+    if (badge) { badge.className = 'text-xs bg-gray-700 text-gray-400 px-1.5 py-0.5 rounded'; }
+  });
+  btn.classList.add('border-blue-500', 'text-blue-400');
+  btn.classList.remove('border-transparent', 'text-gray-400');
+  const activeBadge = btn.querySelector('span');
+  if (activeBadge) { activeBadge.className = 'text-xs bg-blue-900 text-blue-300 px-1.5 py-0.5 rounded'; }
+  document.querySelectorAll('.comp-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('comp-panel-' + type).classList.remove('hidden');
+  document.getElementById('comp-results').innerHTML = '';
+  document.getElementById('comp-pagination').innerHTML = '';
+  document.getElementById('comp-result-count').classList.add('hidden');
+}
+
+function clearFilters() {
+  document.getElementById('comp-kw').value = '';
+  ['filter-pen-cat','filter-pen-inst','filter-reg-cat','filter-nat-level','filter-fsc-inst','filter-fsc-sys'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('comp-results').innerHTML = '';
+  document.getElementById('comp-pagination').innerHTML = '';
+  document.getElementById('comp-result-count').classList.add('hidden');
+}
+
+async function loadComplianceFilters() {
+  if (state.compFiltersLoaded) return;
+  const data = await api('GET', '/compliance/filters');
+  if (!data || data.error) return;
+  function fillSelect(id, opts) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    opts.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      el.appendChild(o);
+    });
+  }
+  fillSelect('filter-pen-cat', data.penalties?.categories || []);
+  fillSelect('filter-pen-inst', data.penalties?.institutions || []);
+  fillSelect('filter-reg-cat', data.regulations?.categories || []);
+  fillSelect('filter-nat-level', data.national?.levels || []);
+  fillSelect('filter-fsc-inst', data.fsc?.institutions || []);
+  fillSelect('filter-fsc-sys', data.fsc?.systems || []);
+  state.compFiltersLoaded = true;
+}
+
+function getCompFilters() {
+  const t = state.compTab;
+  const params = new URLSearchParams();
+  const kw = document.getElementById('comp-kw').value.trim();
+  if (kw) params.set('q', kw);
+  if (t === 'penalties') {
+    const cat = document.getElementById('filter-pen-cat').value;
+    const inst = document.getElementById('filter-pen-inst').value;
+    if (cat) params.set('category', cat);
+    if (inst) params.set('institution', inst);
+  } else if (t === 'regulations') {
+    const cat = document.getElementById('filter-reg-cat').value;
+    if (cat) params.set('category', cat);
+  } else if (t === 'national') {
+    const level = document.getElementById('filter-nat-level').value;
+    if (level) params.set('law_level', level);
+  } else if (t === 'fsc') {
+    const inst = document.getElementById('filter-fsc-inst').value;
+    const sys = document.getElementById('filter-fsc-sys').value;
+    if (inst) params.set('institution', inst);
+    if (sys) params.set('law_system', sys);
+  }
+  return params;
+}
+
+async function searchCompliance(page = 1) {
+  const params = getCompFilters();
+  if (!params.toString()) return;
+  params.set('type', state.compTab);
+  params.set('page', page);
+  state.compPage = page;
+  const data = await api('GET', `/compliance/search?${params.toString()}`);
+  if (!data) return;
+  const countEl = document.getElementById('comp-result-count');
+  if (data.total !== undefined) {
+    countEl.textContent = `共找到 ${data.total} 筆結果，目前顯示第 ${(page-1)*10+1}–${Math.min(page*10, data.total)} 筆`;
+    countEl.classList.remove('hidden');
+  }
+  const container = document.getElementById('comp-results');
+  if (data.rows.length === 0) {
+    container.innerHTML = '<p class="text-gray-500 text-sm text-center py-8">查無符合條件的結果，請嘗試其他關鍵字或調整篩選條件</p>';
+    document.getElementById('comp-pagination').innerHTML = '';
+    return;
+  }
+  const headers = data.headers;
+  const cols = ['col1','col2','col3','col4','col5'].slice(0, headers.length);
+  const tab = state.compTab;
+  container.innerHTML = `
+    <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead><tr class="text-left text-gray-400 border-b border-gray-700">
+        ${headers.map(h => `<th class="pb-2 pr-4 font-medium whitespace-nowrap">${h}</th>`).join('')}
+        <th class="pb-2 w-6"></th>
+      </tr></thead>
+      <tbody>${data.rows.map(r => `
+        <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition-colors cursor-pointer" onclick="openDetail('${tab}', ${r.id})">
+          ${cols.map((c, i) => `<td class="py-2 pr-4 text-gray-300 ${i === cols.length-2 ? 'max-w-xs truncate' : ''}">${r[c] || ''}</td>`).join('')}
+          <td class="py-2 text-gray-600 text-xs">&#8250;</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>`;
+  const pagination = document.getElementById('comp-pagination');
+  const btns = [];
+  if (page > 1) btns.push(`<button onclick="searchCompliance(${page - 1})" class="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">← 上一頁</button>`);
+  btns.push(`<span class="px-3 py-1 text-sm text-gray-400">第 ${page} 頁</span>`);
+  if (data.rows.length === data.page_size) btns.push(`<button onclick="searchCompliance(${page + 1})" class="px-3 py-1 bg-gray-700 rounded text-sm hover:bg-gray-600">下一頁 →</button>`);
+  pagination.innerHTML = btns.join('');
+}
+
+// Enter key for login and compliance search
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.screen.active');
+    if (active?.id === 'screen-login') doLogin();
+    if (active?.id === 'screen-compliance') searchCompliance(1);
+  }
+});
+
+// Auto-check session on load
+(async () => {
+  try {
+    const data = await api('GET', '/me');
+    if (data) {
+      state.user = data;
+      document.getElementById('nav').classList.remove('hidden');
+      await loadModules();
+      showScreen('modules');
+    }
+  } catch (e) { /* not logged in */ }
+})();
+
+// ==================== COMPLIANCE DETAIL MODAL ====================
+async function openDetail(type, id) {
+  const data = await api('GET', `/compliance/detail?type=${type}&id=${id}`);
+  if (!data || data.error) return;
+  const modal = document.getElementById('detail-modal');
+  const title = data.fields.find(f => ['標題','法規名稱','主旨'].includes(f.label))?.value || '';
+  document.getElementById('detail-modal-title').textContent = title || '詳細資料';
+  const body = document.getElementById('detail-modal-body');
+  body.innerHTML = data.fields.map(f => {
+    if (!f.value) return '';
+    if (f.long) {
+      return `<div class="mb-4">
+        <div class="text-xs text-gray-400 mb-1 font-medium">${f.label}</div>
+        <div class="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap bg-gray-900 rounded p-3 max-h-64 overflow-y-auto">${escHtml(f.value)}</div>
+      </div>`;
+    }
+    return `<div class="flex gap-3 mb-2 text-sm">
+      <span class="text-gray-400 shrink-0 w-20">${f.label}</span>
+      <span class="text-gray-200">${escHtml(f.value)}</span>
+    </div>`;
+  }).join('');
+  modal.classList.remove('hidden');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function closeDetail() {
+  document.getElementById('detail-modal').classList.add('hidden');
+}
+
+document.getElementById('detail-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDetail();
+});
+</script>
+
+<!-- Detail Modal -->
+<div id="detail-modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+    <div class="flex items-start justify-between px-6 py-4 border-b border-gray-700">
+      <h3 id="detail-modal-title" class="text-sm font-semibold text-gray-100 leading-snug pr-4"></h3>
+      <button onclick="closeDetail()" class="text-gray-500 hover:text-white shrink-0 text-lg leading-none">&times;</button>
+    </div>
+    <div id="detail-modal-body" class="px-6 py-4 overflow-y-auto flex-1"></div>
+  </div>
+</div>
+
+</body>
+</html>
