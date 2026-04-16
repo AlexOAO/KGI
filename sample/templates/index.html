@@ -15,6 +15,8 @@
   .timer-urgent { color: #ef4444; animation: pulse 1s infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
   .comp-panel.hidden { display: none; }
+  .handoff-spinner { width: 48px; height: 48px; border: 4px solid #374151; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
@@ -67,15 +69,28 @@
 <!-- ===== SCREEN: PRE-SPRINT ===== -->
 <div id="screen-pre-sprint" class="screen max-w-2xl mx-auto px-4 py-12">
   <div class="bg-gray-900 rounded-2xl p-8 border border-gray-700">
-    <div id="pre-tags" class="flex gap-2 mb-3 flex-wrap"></div>
-    <h2 id="pre-title" class="text-2xl font-bold mb-2"></h2>
-    <div class="bg-amber-900/40 border border-amber-600 rounded-lg p-4 mb-6 text-amber-300 text-sm">
+    <div id="pre-tags" class="flex gap-2 mb-4 flex-wrap"></div>
+    <h2 id="pre-title" class="text-2xl font-bold mb-3"></h2>
+    <div id="pre-source" class="flex items-center gap-2 mb-5 text-xs text-gray-400">
+      <span class="text-gray-600">來源文件</span>
+      <span id="pre-source-doc" class="text-gray-300 font-medium"></span>
+    </div>
+    <div class="bg-amber-900/40 border border-amber-600 rounded-lg p-4 mb-6 text-amber-300 text-sm leading-relaxed">
       <span id="pre-warning"></span>
     </div>
     <div class="flex gap-3">
       <button onclick="showScreen('modules')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">返回</button>
       <button onclick="startSprint()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">開始衝刺</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== SCREEN: HANDOFF ===== -->
+<div id="screen-handoff" class="screen max-w-2xl mx-auto px-4 py-12">
+  <div class="bg-gray-900 rounded-2xl p-12 border border-gray-700 text-center">
+    <div class="handoff-spinner mx-auto mb-6"></div>
+    <h2 class="text-xl font-bold mb-2">衝刺完成</h2>
+    <p class="text-gray-400 text-sm">正在生成你的測驗⋯⋯</p>
   </div>
 </div>
 
@@ -356,14 +371,17 @@ function openPreSprint(module) {
   document.getElementById('pre-title').textContent = module.title;
   const tagsEl = document.getElementById('pre-tags');
   tagsEl.innerHTML = (module.topic_tag || '').split(' ').map(t => t ? `<span class="text-xs bg-blue-800 px-2 py-1 rounded-full">${t}</span>` : '').join('');
+  const src = module.source_document || '';
+  document.getElementById('pre-source-doc').textContent = src;
+  document.getElementById('pre-source').classList.toggle('hidden', !src);
   showScreen('pre-sprint');
-  // Fetch flashcard count
   api('GET', `/modules/${module.id}`).then(data => {
     if (!data) return;
     state.flashcards = data.flashcards;
     const count = data.flashcards.length;
+    const mins = Math.ceil((state.currentModule.duration_seconds || 420) / 60);
     document.getElementById('pre-warning').textContent =
-      `您有 7 分鐘閱讀 ${count} 張閃卡。閱讀結束後將立即進行測驗。`;
+      `你有 ${mins} 分鐘閱讀 ${count} 張閃卡，完成後立即進行 5 題測驗。切換分頁將暫停計時。`;
   });
 }
 
@@ -449,12 +467,16 @@ function handleVisibility() {
 async function finishSprint(status) {
   clearInterval(state.timerInterval);
   document.removeEventListener('visibilitychange', handleVisibility);
+  // Show handoff animation while loading quiz
+  showScreen('handoff');
   await api('POST', '/sprint/end', {
     sprint_id: state.sprintId,
     tab_switch_count: state.tabSwitchCount,
     completion_status: status,
   });
   await loadQuiz();
+  // Brief pause so the animation is visible, then transition to quiz
+  await new Promise(r => setTimeout(r, 900));
   showScreen('quiz');
 }
 

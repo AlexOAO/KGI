@@ -26,7 +26,7 @@ def get_flashcards(module_id: int):
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT * FROM flashcard_pages WHERE module_id = %s ORDER BY sequence_number",
+                "SELECT * FROM flashcard_pages WHERE module_id = %s ORDER BY RAND() LIMIT 5",
                 (module_id,),
             )
             return cur.fetchall()
