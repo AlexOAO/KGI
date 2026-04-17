@@ -12,13 +12,7 @@ router = APIRouter(tags=["quiz"])
 @router.get("/quiz/{module_id}")
 def api_get_quiz(module_id: int, user=Depends(get_current_user)):
     questions = get_questions(module_id, limit=5)
-    # Strip correct_answer from response
-    safe = []
-    for q in questions:
-        d = dict(q)
-        d.pop("correct_answer", None)
-        safe.append(d)
-    return {"questions": safe}
+    return {"questions": [dict(q) for q in questions]}
 
 
 class SubmitQuizRequest(BaseModel):

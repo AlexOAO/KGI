@@ -126,20 +126,29 @@
 <div id="screen-quiz" class="screen max-w-2xl mx-auto px-4 py-8">
   <div id="quiz-form">
     <h2 class="text-2xl font-bold mb-2">模組測驗</h2>
-    <p class="text-gray-400 text-sm mb-6">請回答以下問題</p>
+    <p class="text-gray-400 text-sm mb-6">點選選項即時獲得反饋，分數以每題第一次作答為準</p>
     <div id="quiz-questions" class="space-y-6"></div>
-    <button onclick="submitQuiz()" class="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">提交答案</button>
+    <button id="quiz-submit-btn" onclick="submitQuiz()" class="mt-6 w-full py-3 bg-blue-600 hover:bg-blue-500 rounded-lg font-semibold transition">完成測驗</button>
   </div>
   <div id="quiz-result" class="hidden">
     <div class="bg-gray-900 rounded-2xl p-8 border border-gray-700 text-center">
       <div id="quiz-score-display" class="text-5xl font-bold mb-2"></div>
       <div id="quiz-grade-display" class="text-xl mb-4"></div>
-      <p id="quiz-detail" class="text-gray-400 mb-6"></p>
-      <p class="text-sm text-gray-500 mb-6">複習時間已排程（SM-2 間隔複習）</p>
+      <p id="quiz-detail" class="text-gray-400 mb-2"></p>
+      <p class="text-sm text-gray-500 mb-5">複習時間已排程（SM-2 間隔複習）</p>
+      <div id="quiz-wrong-btn-row" class="hidden mb-5">
+        <button onclick="toggleReviewPanel()" class="w-full py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-semibold transition">複習錯誤題目</button>
+      </div>
+      <div id="quiz-result-list" class="text-left mb-6 space-y-3"></div>
       <div class="flex gap-3 justify-center">
         <button onclick="showScreen('modules')" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">回模組列表</button>
         <button onclick="loadDashboard(); showScreen('dashboard')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm">查看儀表板</button>
       </div>
+    </div>
+    <div id="quiz-review-panel" class="hidden mt-6">
+      <h3 class="text-lg font-bold mb-4 text-amber-400">複習錯誤題目</h3>
+      <div id="quiz-review-questions" class="space-y-4"></div>
+      <button onclick="toggleReviewPanel()" class="mt-4 w-full py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">收起複習</button>
     </div>
   </div>
 </div>
@@ -267,6 +276,9 @@ const state = {
   tabSwitchCount: 0,
   quizQuestions: [],
   quizAnswers: {},
+  firstAnswers: {},
+  correctAnswers: {},
+  wrongQuestions: [],
   compTab: 'penalties',
   compPage: 1,
   compFiltersLoaded: false,
@@ -485,21 +497,26 @@ async function loadQuiz() {
   const data = await api('GET', `/quiz/${state.currentModule.id}`);
   if (!data) return;
   state.quizQuestions = data.questions;
-  state.quizAnswers = {};
+  state.firstAnswers = {};
+  state.correctAnswers = {};
+  state.wrongQuestions = [];
   const container = document.getElementById('quiz-questions');
   container.innerHTML = '';
   data.questions.forEach((q, i) => {
     const opts = q.options_json || [];
+    state.correctAnswers[q.id] = q.correct_answer;
     const div = document.createElement('div');
+    div.id = `qblock-${q.id}`;
     div.className = 'bg-gray-900 rounded-xl p-5 border border-gray-700';
     div.innerHTML = `
       <p class="font-medium mb-3"><span class="text-blue-400 mr-2">Q${i + 1}.</span>${q.prompt}</p>
       <div class="space-y-2">
         ${opts.map(opt => `
-          <label class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-700 cursor-pointer transition">
-            <input type="radio" name="q${q.id}" value="${opt}" class="accent-blue-500">
+          <div class="quiz-opt flex items-center gap-3 p-3 rounded-lg border border-transparent hover:bg-gray-700 cursor-pointer transition-all"
+               data-qid="${q.id}" data-value="${opt.replace(/"/g,'&quot;')}"
+               onclick="selectAnswer(${q.id}, this)">
             <span class="text-sm">${opt}</span>
-          </label>
+          </div>
         `).join('')}
       </div>
     `;
@@ -507,13 +524,45 @@ async function loadQuiz() {
   });
   document.getElementById('quiz-form').classList.remove('hidden');
   document.getElementById('quiz-result').classList.add('hidden');
+  document.getElementById('quiz-review-panel').classList.add('hidden');
+}
+
+function selectAnswer(qId, optEl) {
+  const qBlock = document.getElementById(`qblock-${qId}`);
+  if (qBlock.dataset.solved === 'true') return;
+  const selected = optEl.dataset.value;
+  const correct = state.correctAnswers[qId];
+  // Record first click only
+  if (!(qId in state.firstAnswers)) {
+    state.firstAnswers[qId] = selected;
+  }
+  // Clear previous red highlights (but not green ones)
+  qBlock.querySelectorAll('.quiz-opt').forEach(el => {
+    if (el.dataset.state !== 'correct') {
+      el.className = 'quiz-opt flex items-center gap-3 p-3 rounded-lg border border-transparent hover:bg-gray-700 cursor-pointer transition-all';
+      el.dataset.state = '';
+    }
+  });
+  if (selected === correct) {
+    optEl.className = 'quiz-opt flex items-center gap-3 p-3 rounded-lg border border-green-500 bg-green-900/30 cursor-default transition-all';
+    optEl.dataset.state = 'correct';
+    qBlock.dataset.solved = 'true';
+    qBlock.querySelectorAll('.quiz-opt').forEach(el => {
+      el.style.pointerEvents = 'none';
+      if (el.dataset.state !== 'correct') {
+        el.className = 'quiz-opt flex items-center gap-3 p-3 rounded-lg border border-transparent opacity-40 transition-all';
+      }
+    });
+  } else {
+    optEl.className = 'quiz-opt flex items-center gap-3 p-3 rounded-lg border border-red-500 bg-red-900/30 cursor-pointer transition-all';
+    optEl.dataset.state = 'wrong';
+  }
 }
 
 async function submitQuiz() {
   const answers = {};
   state.quizQuestions.forEach(q => {
-    const sel = document.querySelector(`input[name="q${q.id}"]:checked`);
-    answers[String(q.id)] = sel ? sel.value : '';
+    answers[String(q.id)] = state.firstAnswers[q.id] || '';
   });
   const data = await api('POST', '/quiz/submit', {
     sprint_id: state.sprintId,
@@ -527,8 +576,67 @@ async function submitQuiz() {
   document.getElementById('quiz-score-display').className = `text-5xl font-bold mb-2 ${score >= 60 ? 'text-green-400' : 'text-red-400'}`;
   document.getElementById('quiz-grade-display').textContent = grade;
   document.getElementById('quiz-detail').textContent = `答對 ${data.correct} / ${data.total} 題`;
+  // Build per-question result list
+  const resultList = document.getElementById('quiz-result-list');
+  resultList.innerHTML = '';
+  state.wrongQuestions = [];
+  state.quizQuestions.forEach((q, i) => {
+    const firstAns = state.firstAnswers[q.id] || '（未作答）';
+    const correct = state.correctAnswers[q.id];
+    const isCorrect = firstAns === correct;
+    if (!isCorrect) state.wrongQuestions.push(q);
+    const item = document.createElement('div');
+    item.className = `p-3 rounded-lg border ${isCorrect ? 'border-green-700 bg-green-900/20' : 'border-red-700 bg-red-900/20'}`;
+    item.innerHTML = `
+      <div class="flex items-start gap-2">
+        <span class="${isCorrect ? 'text-green-400' : 'text-red-400'} font-bold text-base mt-0.5">${isCorrect ? '✓' : '✗'}</span>
+        <div class="flex-1">
+          <p class="text-sm font-medium">Q${i+1}. ${q.prompt}</p>
+          ${isCorrect
+            ? `<p class="text-xs text-green-400 mt-1">答對了！</p>`
+            : `<p class="text-xs text-red-400 mt-1">你的答案：${firstAns}</p>
+               <p class="text-xs text-green-400">正確答案：${correct}</p>`
+          }
+        </div>
+      </div>`;
+    resultList.appendChild(item);
+  });
+  const wrongBtnRow = document.getElementById('quiz-wrong-btn-row');
+  wrongBtnRow.classList.toggle('hidden', state.wrongQuestions.length === 0);
   document.getElementById('quiz-form').classList.add('hidden');
   document.getElementById('quiz-result').classList.remove('hidden');
+}
+
+function toggleReviewPanel() {
+  const panel = document.getElementById('quiz-review-panel');
+  if (panel.classList.contains('hidden')) {
+    const container = document.getElementById('quiz-review-questions');
+    container.innerHTML = '';
+    state.wrongQuestions.forEach((q, i) => {
+      const opts = q.options_json || [];
+      const correct = state.correctAnswers[q.id];
+      const firstAns = state.firstAnswers[q.id] || '';
+      const div = document.createElement('div');
+      div.className = 'bg-gray-900 rounded-xl p-5 border border-amber-700/50';
+      div.innerHTML = `
+        <p class="font-medium mb-3 text-amber-300">${q.prompt}</p>
+        <div class="space-y-2">
+          ${opts.map(opt => {
+            let cls = 'flex items-center justify-between gap-3 p-3 rounded-lg border ';
+            let badge = '';
+            if (opt === correct) { cls += 'border-green-500 bg-green-900/30'; badge = '<span class="text-xs text-green-400 shrink-0">✓ 正確答案</span>'; }
+            else if (opt === firstAns) { cls += 'border-red-500 bg-red-900/20'; badge = '<span class="text-xs text-red-400 shrink-0">✗ 你的答案</span>'; }
+            else { cls += 'border-transparent opacity-40'; }
+            return `<div class="${cls}"><span class="text-sm">${opt}</span>${badge}</div>`;
+          }).join('')}
+        </div>`;
+      container.appendChild(div);
+    });
+    panel.classList.remove('hidden');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    panel.classList.add('hidden');
+  }
 }
 
 // ==================== DASHBOARD ====================
