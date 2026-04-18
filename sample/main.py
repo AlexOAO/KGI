@@ -12,6 +12,7 @@ from fastapi import Request
 
 from app.core.database import get_conn
 from app.data.loader import load_compliance_data, seed_demo_data
+from app.data.migrations import run_migrations
 
 
 def create_tables():
@@ -46,6 +47,7 @@ def is_table_empty(table_name):
 async def lifespan(app: FastAPI):
     print("Initializing database...")
     create_tables()
+    run_migrations()
     if is_table_empty("comp_penalties"):
         print("Loading compliance data (first run)...")
         load_compliance_data()

@@ -8,7 +8,6 @@ router = APIRouter(tags=["dashboard"])
 @router.get("/dashboard")
 def api_dashboard(user=Depends(get_current_user)):
     data = get_dashboard(user["user_id"])
-    # Convert dates to strings for JSON serialization
     reviews = []
     for r in data.get("reviews", []):
         reviews.append({
@@ -27,6 +26,8 @@ def api_dashboard(user=Depends(get_current_user)):
     return {
         "modules_completed": data["modules_completed"],
         "streak": data["streak"],
+        "streak_freeze_count": data["streak_freeze_count"],
+        "unlock_progress": data["unlock_progress"],
         "mastery": mastery,
         "reviews": reviews,
     }

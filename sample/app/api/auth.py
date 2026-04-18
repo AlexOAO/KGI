@@ -72,3 +72,18 @@ def logout(response: Response):
 @router.get("/me")
 def me(user=Depends(get_current_user)):
     return user
+
+
+@router.get("/me/level")
+def me_level(user=Depends(get_current_user)):
+    from app.core.database import get_conn
+    from app.services.xp_service import level_for
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT total_xp FROM users WHERE id=%s", (user["user_id"],))
+            row = cur.fetchone()
+            total_xp = row["total_xp"] if row else 0
+    finally:
+        conn.close()
+    return level_for(total_xp)

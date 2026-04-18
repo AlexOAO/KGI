@@ -19,13 +19,13 @@ def get_questions(module_id: int, limit: int = 5):
         conn.close()
 
 
-def save_quiz_session(sprint_id, user_id, module_id, score, responses):
+def save_quiz_session(sprint_id, user_id, module_id, score, responses, xp_earned=0):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO quiz_sessions (sprint_id, user_id, module_id, score) VALUES (%s,%s,%s,%s)",
-                (sprint_id, user_id, module_id, score),
+                "INSERT INTO quiz_sessions (sprint_id, user_id, module_id, score, xp_earned) VALUES (%s,%s,%s,%s,%s)",
+                (sprint_id, user_id, module_id, score, xp_earned),
             )
             quiz_session_id = cur.lastrowid
             for resp in responses:

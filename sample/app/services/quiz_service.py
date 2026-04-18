@@ -2,9 +2,14 @@ from datetime import date, timedelta
 from app.core.database import get_conn
 from app.services.sm2 import calculate_next_interval, score_to_quality
 from app.models.quiz import save_quiz_session
+from app.services.xp_service import compute_xp, update_user_xp, level_for
 
 
-def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers: dict, topic_tag: str = None):
+def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers: dict,
+               topic_tag: str = None, first_attempt_map: dict = None):
+    if first_attempt_map is None:
+        first_attempt_map = {}
+
     responses = []
     correct = 0
     for q in questions:
@@ -21,14 +26,36 @@ def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers
         })
 
     score = (correct / len(questions) * 100) if questions else 0
-    quiz_session_id = save_quiz_session(sprint_id, user_id, module_id, score, responses)
 
-    # Update SM-2 schedule
+    # Compute and award XP
+    xp_earned = compute_xp(questions, first_attempt_map)
+    xp_result = update_user_xp(user_id, xp_earned)
+
+    quiz_session_id = save_quiz_session(sprint_id, user_id, module_id, score, responses, xp_earned=xp_earned)
+
+    # Update SM-2 schedule using first-attempt quality
     if topic_tag:
-        quality = score_to_quality(score)
+        if first_attempt_map:
+            first_correct = sum(1 for v in first_attempt_map.values() if v)
+            first_score = (first_correct / len(questions) * 100) if questions else score
+        else:
+            first_score = score
+        quality = score_to_quality(first_score)
         _update_review_schedule(user_id, topic_tag, quality)
 
-    return score, correct, len(questions), quiz_session_id
+    level_info = level_for(xp_result["new_xp"])
+
+    return {
+        "score": score,
+        "correct": correct,
+        "total": len(questions),
+        "quiz_session_id": quiz_session_id,
+        "xp_earned": xp_earned,
+        "total_xp": xp_result["new_xp"],
+        "leveled_up": xp_result["leveled_up"],
+        "level_name": xp_result["new_level"],
+        "progress_pct": level_info["progress_pct"],
+    }
 
 
 def _update_review_schedule(user_id: int, concept_tag: str, quality: int):

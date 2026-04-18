@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from app.api.auth import get_current_user
-from app.models.module import get_modules, get_module, get_flashcards
+from app.core.database import get_conn
+from app.models.module import get_module, get_flashcards
 from app.services.dashboard_service import get_due_reviews
 
 router = APIRouter(tags=["modules"])
@@ -8,7 +9,20 @@ router = APIRouter(tags=["modules"])
 
 @router.get("/modules")
 def list_modules(user=Depends(get_current_user)):
-    modules = get_modules()
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT m.*, bs.best_score FROM modules m "
+                "LEFT JOIN (SELECT module_id, MAX(score) as best_score "
+                "FROM quiz_sessions WHERE user_id=%s GROUP BY module_id) bs "
+                "ON m.id = bs.module_id",
+                (user["user_id"],),
+            )
+            modules = cur.fetchall()
+    finally:
+        conn.close()
+
     due = get_due_reviews(user["user_id"])
     due_tags = {r["concept_tag"] for r in due}
     result = []
