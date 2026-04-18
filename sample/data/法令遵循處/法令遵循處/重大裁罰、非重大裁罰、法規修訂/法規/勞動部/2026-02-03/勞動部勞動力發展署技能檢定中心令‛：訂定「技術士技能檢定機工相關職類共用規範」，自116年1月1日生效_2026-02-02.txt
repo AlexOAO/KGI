@@ -1,0 +1,4 @@
+勞動部勞動力發展署技能檢定中心令：訂定「技術士技能檢定機工相關職類共用規範」，自116年1月1日生效
+2026-02-02
+
+[ERROR] Failed to fetch URL: HTTPSConnectionPool(host='laws.mol.gov.tw', port=443): Read timed out. (read timeout=10)
