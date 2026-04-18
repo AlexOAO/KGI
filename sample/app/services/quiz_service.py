@@ -55,6 +55,7 @@ def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers
         "leveled_up": xp_result["leveled_up"],
         "level_name": xp_result["new_level"],
         "progress_pct": level_info["progress_pct"],
+        "level_index": level_info["level_index"],
     }
 
 

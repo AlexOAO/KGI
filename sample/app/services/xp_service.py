@@ -5,15 +5,18 @@ LEVELS = [
     {"name": "合規見習生",  "min_xp": 100,  "next_xp": 300},
     {"name": "法遵分析師",  "min_xp": 300,  "next_xp": 700},
     {"name": "合規達人",    "min_xp": 700,  "next_xp": 1500},
-    {"name": "法遵大師",    "min_xp": 1500, "next_xp": None},
+    {"name": "法遵大師",    "min_xp": 1500, "next_xp": 3000},
+    {"name": "法遵守護者",  "min_xp": 3000, "next_xp": None},
 ]
 
 
 def level_for(total_xp: int) -> dict:
     current = LEVELS[0]
-    for lvl in LEVELS:
+    idx = 0
+    for i, lvl in enumerate(LEVELS):
         if total_xp >= lvl["min_xp"]:
             current = lvl
+            idx = i
     next_xp = current["next_xp"]
     if next_xp is None:
         progress_pct = 100
@@ -26,6 +29,7 @@ def level_for(total_xp: int) -> dict:
         "next_xp": next_xp,
         "progress_pct": progress_pct,
         "total_xp": total_xp,
+        "level_index": idx + 1,   # 1–6
     }
 
 

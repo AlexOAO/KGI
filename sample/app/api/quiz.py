@@ -48,4 +48,5 @@ def api_submit_quiz(req: SubmitQuizRequest, user=Depends(get_current_user)):
         "level_name": result["level_name"],
         "progress_pct": result["progress_pct"],
         "next_xp": level_info["next_xp"],
+        "level_index": level_info["level_index"],
     }

@@ -161,6 +161,18 @@
     <h2 class="text-2xl font-bold tracking-tight">學習模組</h2>
     <span id="modules-due-badge" class="hidden text-xs px-3 py-1 rounded-full font-medium" style="background:rgba(234,88,12,0.2);color:#fb923c;border:1px solid rgba(234,88,12,0.3)">待複習</span>
   </div>
+  <!-- Level hero block -->
+  <div class="flex items-center gap-6 mb-5 p-4 rounded-2xl" style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.04));border:1px solid rgba(99,102,241,0.15)">
+    <img id="level-avatar" src="/static/pngs/01.png" alt=""
+         class="h-24 w-24 rounded-xl object-cover shrink-0"
+         style="box-shadow:0 0 18px rgba(99,102,241,0.4)">
+    <div class="min-w-0">
+      <div id="level-hero-name" class="text-xl font-bold text-white mb-0.5">新手法遵員</div>
+      <div id="level-hero-stage" class="text-xs text-indigo-400 font-medium mb-2">第 1 / 6 階</div>
+      <div id="level-hero-msg" class="text-sm text-gray-400 leading-snug"></div>
+    </div>
+  </div>
+  <!-- XP bar -->
   <div id="xp-header" class="flex items-center gap-3 mb-6">
     <span id="level-badge">新手法遵員</span>
     <div class="flex-1 rounded-full h-2 overflow-hidden" style="background:rgba(255,255,255,0.06)">
@@ -212,11 +224,10 @@
     歡迎回來，計時器已恢復
   </div>
   <!-- Companion strip -->
-  <div id="reader-companion" class="flex items-end justify-between mb-2 h-20">
-    <div id="reader-buddy-caption" class="text-xs text-gray-500 italic self-end pb-1 max-w-[60%] leading-snug"></div>
+  <div id="reader-companion" class="flex items-center justify-center mb-4">
     <img id="reader-buddy-img" src="" alt=""
-         class="h-20 object-contain select-none"
-         style="filter:drop-shadow(0 4px 16px rgba(99,102,241,0.25));transition:opacity 0.25s ease"
+         class="max-h-48 w-auto object-contain select-none rounded-xl"
+         style="transition:opacity 0.25s ease"
          onerror="this.style.visibility='hidden'">
   </div>
   <!-- Card -->
@@ -987,11 +998,35 @@ async function searchCompliance(page = 1) {
 }
 
 // ==================== XP / LEVEL / GAMIFICATION ====================
+const LEVEL_MSGS = [
+  ['剛踏上法遵之路，每一步都算數。', '規則是保護，不是束縛，從這裡開始理解它。', '基礎打穩，未來的挑戰才能應對自如。'],
+  ['你已掌握基礎，正在建立真正的合規直覺。', '見習不代表不懂，你比你想的更接近專業。', '持續累積，量變終將帶來質變。'],
+  ['分析法規是一種能力，你正在磨利它。', '能看懂條文背後的邏輯，是你現在的優勢。', '你的判斷力已超越大多數人，繼續深化。'],
+  ['合規達人不只懂法規，更懂風險的本質。', '你的知識已足以保護自己與客戶。', '距離頂峰只差最後一段，穩住節奏。'],
+  ['法遵大師的境界，在於化繁為簡。', '你掌握的不只是知識，而是合規的思維框架。', '每個人都希望身邊有你這樣的人。'],
+  ['法遵守護者：你已成為組織合規文化的核心。', '你的存在，讓整個團隊更安全。', '這個等級，很少人能到達。'],
+];
+
 function updateXpDisplay(lvl) {
   document.getElementById('level-badge').textContent = lvl.name;
   document.getElementById('xp-bar').style.width = lvl.progress_pct + '%';
   const next = lvl.next_xp ? `${lvl.total_xp} / ${lvl.next_xp} XP` : `${lvl.total_xp} XP`;
   document.getElementById('xp-label').textContent = next;
+  const avatarEl = document.getElementById('level-avatar');
+  const idx = (lvl.level_index || 1) - 1;
+  if (avatarEl) {
+    const num = String(idx + 1).padStart(2, '0');
+    avatarEl.src = `/static/pngs/${num}.png`;
+  }
+  const nameEl = document.getElementById('level-hero-name');
+  const stageEl = document.getElementById('level-hero-stage');
+  const msgEl = document.getElementById('level-hero-msg');
+  if (nameEl) nameEl.textContent = lvl.name;
+  if (stageEl) stageEl.textContent = `第 ${idx + 1} / 6 階`;
+  if (msgEl) {
+    const pool = LEVEL_MSGS[idx] || LEVEL_MSGS[0];
+    msgEl.textContent = pool[Math.floor(Math.random() * pool.length)];
+  }
 }
 
 function showXpReward(data) {
@@ -1005,6 +1040,9 @@ function showXpReward(data) {
     lvlUpEl.classList.remove('hidden');
     launchConfetti();
     showMascot(randMsg(MASCOT_MSGS.levelup) + data.level_name);
+    if (data.level_index) {
+      updateXpDisplay({ name: data.level_name, progress_pct: data.progress_pct ?? 0, total_xp: data.total_xp ?? 0, next_xp: data.next_xp || null, level_index: data.level_index });
+    }
   } else {
     lvlUpEl.classList.add('hidden');
   }
@@ -1108,32 +1146,15 @@ const BUDDY_IMAGES = [
   'reader_16.jpg','reader_17.jpeg','reader_18.jpeg','reader_19.jpeg','reader_20.jpeg',
 ].map(f => `/static/png/${f}`);
 
-const BUDDY_CAPTIONS = [
-  '認真讀，知識就是你的盾牌',
-  '慢慢來，每個細節都有用',
-  '這個考點值得多看一眼',
-  '法遵高手就是這樣練出來的',
-  '讀懂比讀快更重要',
-  '今天的閱讀，是明天的保護',
-  '拆開來看，法規其實不難',
-  '每位合規專家都從這裡開始',
-  '看完這張，你又前進一步',
-  '專注五分鐘，勝過分心一小時',
-  '把這段話記起來，考試會遇到',
-  '合規意識，從每一張閃卡開始',
-];
-
 function updateBuddyImage(cardIndex) {
   const img = document.getElementById('reader-buddy-img');
-  const cap = document.getElementById('reader-buddy-caption');
   if (!img) return;
   img.style.opacity = '0';
   setTimeout(() => {
-    const seed = (cardIndex * 7 + 3) % BUDDY_IMAGES.length;
+    const seed = Math.floor(Math.random() * BUDDY_IMAGES.length);
     img.style.visibility = 'visible';
     img.src = BUDDY_IMAGES[seed];
     img.style.opacity = '1';
-    if (cap) cap.textContent = BUDDY_CAPTIONS[cardIndex % BUDDY_CAPTIONS.length];
   }, 250);
 }
 
