@@ -73,6 +73,28 @@ def run_migrations():
             if cur.fetchone()["cnt"] == 0:
                 cur.execute("ALTER TABLE users ADD COLUMN perf_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00")
 
+            # Expand category ENUM to include reset_level if needed
+            cur.execute(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='reward_catalog' AND COLUMN_NAME='category'"
+            )
+            col_type = cur.fetchone()["COLUMN_TYPE"]
+            if b"reset_level" not in col_type if isinstance(col_type, bytes) else "reset_level" not in col_type:
+                cur.execute(
+                    "ALTER TABLE reward_catalog MODIFY COLUMN category "
+                    "ENUM('gift','voucher','performance_hours','other','reset_level') NOT NULL DEFAULT 'gift'"
+                )
+            # Seed reset-level voucher if missing
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM reward_catalog WHERE category='reset_level'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute(
+                    "INSERT INTO reward_catalog (name, description, category, points_cost, stock) "
+                    "VALUES (%s,%s,%s,%s,%s)",
+                    ("等級重置券", "將你的 XP 歸零，從頭練等。升級獎勵記錄同步清除，可重新領取所有等級獎勵。", "reset_level", 0, None),
+                )
+
         conn.commit()
         print("Migrations applied.")
     finally:

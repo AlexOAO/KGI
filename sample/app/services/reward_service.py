@@ -94,14 +94,20 @@ def get_wallet(user_id: int) -> dict:
             if not row:
                 return {"kgi_points": 0, "learning_hours": 0.0,
                         "perf_hours": 0.0, "cumulative_learn_seconds": 0,
-                        "convertible_hours": 0.0}
+                        "convertible_hours": 0.0, "claimed_levels": []}
             convertible = round(row["cumulative_learn_seconds"] / 3600, 2)
+            cur.execute(
+                "SELECT level_reached FROM level_up_rewards WHERE user_id=%s",
+                (user_id,),
+            )
+            claimed_levels = [r["level_reached"] for r in cur.fetchall()]
             return {
                 "kgi_points": row["kgi_points"],
                 "learning_hours": float(row["learning_hours"]),
                 "perf_hours": float(row["perf_hours"]),
                 "cumulative_learn_seconds": row["cumulative_learn_seconds"],
                 "convertible_hours": convertible,
+                "claimed_levels": claimed_levels,
             }
     finally:
         conn.close()

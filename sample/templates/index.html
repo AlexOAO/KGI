@@ -167,10 +167,16 @@
     <img id="level-avatar" src="/static/pngs/01.png" alt=""
          class="h-24 w-24 rounded-xl object-cover shrink-0"
          style="box-shadow:0 0 18px rgba(99,102,241,0.4)">
-    <div class="min-w-0">
+    <div class="min-w-0 flex-1">
       <div id="level-hero-name" class="text-xl font-bold text-white mb-0.5">新手法遵員</div>
       <div id="level-hero-stage" class="text-xs text-indigo-400 font-medium mb-2">第 1 / 6 階</div>
-      <div id="level-hero-msg" class="text-sm text-gray-400 leading-snug"></div>
+      <div id="level-hero-msg" class="text-sm text-gray-400 leading-snug mb-2"></div>
+      <div id="level-next-reward" class="hidden text-xs rounded-lg px-3 py-1.5 inline-flex items-center gap-2" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2)">
+        <span class="text-gray-500">下一階獎勵</span>
+        <span id="level-next-pts" class="text-yellow-400 font-semibold"></span>
+        <span class="text-gray-600">或</span>
+        <span id="level-next-hrs" class="text-indigo-400 font-semibold"></span>
+      </div>
     </div>
   </div>
   <!-- XP bar -->
@@ -418,6 +424,7 @@
   <div class="flex gap-1 border-b border-gray-700 mb-5">
     <button id="rtab-exchange" onclick="setRewardsTab('exchange')" class="rew-tab px-4 py-2 text-sm border-b-2 border-indigo-500 text-indigo-400">兌換</button>
     <button id="rtab-catalog" onclick="setRewardsTab('catalog')" class="rew-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">商品目錄</button>
+    <button id="rtab-levels" onclick="setRewardsTab('levels')" class="rew-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">等級獎勵</button>
     <button id="rtab-history" onclick="setRewardsTab('history')" class="rew-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">交易記錄</button>
   </div>
 
@@ -447,6 +454,12 @@
                 style="background:linear-gradient(135deg,#d97706,#f59e0b);color:#0d0d1a">兌換時數</button>
       </div>
     </div>
+  </div>
+
+  <!-- Tab: Level Rewards -->
+  <div id="rpanel-levels" class="hidden">
+    <p class="text-xs text-gray-500 mb-4">每個等級晉升時可二擇一領取獎勵，每階僅限領取一次。</p>
+    <div id="level-rewards-list" class="space-y-3"></div>
   </div>
 
   <!-- Tab: Catalog -->
@@ -482,6 +495,8 @@ const state = {
   pendingRewardLevel: null,
   pendingRewardOptions: null,
   rewardsTab: 'exchange',
+  claimedLevels: [],
+  currentTotalXp: 0,
   compTab: 'penalties',
   compPage: 1,
   compFiltersLoaded: false,
@@ -1091,6 +1106,15 @@ const LEVEL_MSGS = [
   ['法遵守護者：你已成為組織合規文化的核心。', '你的存在，讓整個團隊更安全。', '這個等級，很少人能到達。'],
 ];
 
+// Next-level reward table (mirrors reward_service.py LEVEL_REWARDS)
+const NEXT_LVL_REWARDS = {
+  1: { pts: 100,  hrs: 1.0  },
+  2: { pts: 250,  hrs: 2.5  },
+  3: { pts: 500,  hrs: 5.0  },
+  4: { pts: 1000, hrs: 10.0 },
+  5: { pts: 2500, hrs: 25.0 },
+};
+
 function updateXpDisplay(lvl) {
   document.getElementById('level-badge').textContent = lvl.name;
   document.getElementById('xp-bar').style.width = lvl.progress_pct + '%';
@@ -1110,6 +1134,18 @@ function updateXpDisplay(lvl) {
   if (msgEl) {
     const pool = LEVEL_MSGS[idx] || LEVEL_MSGS[0];
     msgEl.textContent = pool[Math.floor(Math.random() * pool.length)];
+  }
+  // Next-level reward preview
+  const nextRewardEl = document.getElementById('level-next-reward');
+  if (nextRewardEl) {
+    const reward = NEXT_LVL_REWARDS[idx + 1];
+    if (reward) {
+      document.getElementById('level-next-pts').textContent = `${reward.pts} 點`;
+      document.getElementById('level-next-hrs').textContent = `${reward.hrs} 時數`;
+      nextRewardEl.classList.remove('hidden');
+    } else {
+      nextRewardEl.classList.add('hidden'); // max level, no next reward
+    }
   }
 }
 
@@ -1249,8 +1285,93 @@ async function loadRewards() {
   document.getElementById('rew-points').textContent = wallet.kgi_points;
   document.getElementById('rew-hours').textContent = wallet.learning_hours.toFixed(2);
   document.getElementById('rew-convertible').textContent = `累積學習 ${wallet.convertible_hours} 小時`;
+  state.claimedLevels = wallet.claimed_levels || [];
+  state.currentTotalXp = wallet.kgi_points; // not xp, kept separately
   if (state.rewardsTab === 'catalog') loadCatalog();
   else if (state.rewardsTab === 'history') loadTxHistory();
+  else if (state.rewardsTab === 'levels') renderLevelRewards();
+}
+
+function renderLevelRewards() {
+  const LEVELS = [
+    { index: 1, name: '新手法遵員', min_xp: 0,    next_xp: 100,  reward: null },
+    { index: 2, name: '合規見習生', min_xp: 100,  next_xp: 300,  reward: { pts: 100,  hrs: 1.0  } },
+    { index: 3, name: '法遵分析師', min_xp: 300,  next_xp: 700,  reward: { pts: 250,  hrs: 2.5  } },
+    { index: 4, name: '合規達人',   min_xp: 700,  next_xp: 1500, reward: { pts: 500,  hrs: 5.0  } },
+    { index: 5, name: '法遵大師',   min_xp: 1500, next_xp: 3000, reward: { pts: 1000, hrs: 10.0 } },
+    { index: 6, name: '法遵守護者', min_xp: 3000, next_xp: null, reward: { pts: 2500, hrs: 25.0 } },
+  ];
+  const TIER_COLORS = [
+    'rgba(148,163,184,0.15)', // 1 grey
+    'rgba(34,197,94,0.12)',   // 2 green
+    'rgba(99,102,241,0.12)',  // 3 indigo
+    'rgba(245,158,11,0.12)',  // 4 amber
+    'rgba(168,85,247,0.12)', // 5 purple
+    'rgba(239,68,68,0.12)',  // 6 red
+  ];
+  const TIER_BORDER = [
+    'rgba(148,163,184,0.2)',
+    'rgba(34,197,94,0.25)',
+    'rgba(99,102,241,0.25)',
+    'rgba(245,158,11,0.25)',
+    'rgba(168,85,247,0.25)',
+    'rgba(239,68,68,0.25)',
+  ];
+
+  const claimed = state.claimedLevels || [];
+  // derive current level from XP display
+  const xpText = document.getElementById('xp-label')?.textContent || '0';
+  const currentXp = parseInt(xpText) || 0;
+
+  const list = document.getElementById('level-rewards-list');
+  list.innerHTML = LEVELS.map((lvl, i) => {
+    const isClaimed  = claimed.includes(lvl.index);
+    const isReached  = currentXp >= lvl.min_xp;
+    const isCurrent  = isReached && (lvl.next_xp === null || currentXp < lvl.next_xp);
+    const isLocked   = !isReached;
+
+    let statusBadge = '';
+    if (isClaimed)      statusBadge = `<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3)">✓ 已領取</span>`;
+    else if (isCurrent) statusBadge = `<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)">目前等級</span>`;
+    else if (isReached) statusBadge = `<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.3)">可領取</span>`;
+    else                statusBadge = `<span class="text-xs px-2 py-0.5 rounded-full font-medium" style="background:rgba(255,255,255,0.04);color:#6b7280;border:1px solid rgba(255,255,255,0.08)">🔒 未解鎖</span>`;
+
+    const xpRange = lvl.next_xp ? `${lvl.min_xp} – ${lvl.next_xp} XP` : `${lvl.min_xp}+ XP`;
+
+    const rewardBlock = lvl.reward
+      ? `<div class="flex items-center gap-4 mt-3 pt-3" style="border-top:1px solid rgba(255,255,255,0.05)">
+           <span class="text-xs text-gray-500">升級獎勵（二擇一）</span>
+           <span class="text-sm font-bold text-yellow-400">${lvl.reward.pts} 點</span>
+           <span class="text-xs text-gray-600">或</span>
+           <span class="text-sm font-bold text-indigo-400">${lvl.reward.hrs} 學習時數</span>
+           ${isClaimed ? '' : isReached ? `<button onclick="claimFromLevelTab(${lvl.index})" class="ml-auto text-xs px-3 py-1 rounded-lg font-semibold transition-all hover:opacity-90" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">領取</button>` : ''}
+         </div>`
+      : `<div class="mt-3 pt-3 text-xs text-gray-600" style="border-top:1px solid rgba(255,255,255,0.05)">起始等級，無升級獎勵</div>`;
+
+    return `<div class="rounded-xl p-4 transition-all" style="background:${isLocked ? 'rgba(255,255,255,0.02)' : TIER_COLORS[i]};border:1px solid ${isLocked ? 'rgba(255,255,255,0.05)' : TIER_BORDER[i]};opacity:${isLocked ? '0.6' : '1'}">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div>
+            <div class="font-semibold text-sm ${isLocked ? 'text-gray-500' : 'text-white'}">${lvl.name}</div>
+            <div class="text-xs text-gray-500 mt-0.5">第 ${lvl.index} / 6 階 · ${xpRange}</div>
+          </div>
+        </div>
+        ${statusBadge}
+      </div>
+      ${rewardBlock}
+    </div>`;
+  }).join('');
+}
+
+async function claimFromLevelTab(levelIndex) {
+  // Show the reward modal pre-populated for this level
+  const REWARDS = {2:{kgi_points:100,learning_hours:1.0},3:{kgi_points:250,learning_hours:2.5},4:{kgi_points:500,learning_hours:5.0},5:{kgi_points:1000,learning_hours:10.0},6:{kgi_points:2500,learning_hours:25.0}};
+  const opts = REWARDS[levelIndex];
+  if (!opts) return;
+  const NAMES = {1:'新手法遵員',2:'合規見習生',3:'法遵分析師',4:'合規達人',5:'法遵大師',6:'法遵守護者'};
+  state.pendingRewardLevel = levelIndex;
+  state.pendingRewardOptions = opts;
+  showLevelRewardModal(opts, levelIndex, NAMES[levelIndex]);
 }
 
 function setRewardsTab(tab) {
@@ -1261,12 +1382,13 @@ function setRewardsTab(tab) {
   });
   const active = document.getElementById('rtab-' + tab);
   if (active) { active.classList.add('border-indigo-500','text-indigo-400'); active.classList.remove('border-transparent','text-gray-400'); }
-  ['exchange','catalog','history'].forEach(t => {
+  ['exchange','catalog','levels','history'].forEach(t => {
     const p = document.getElementById('rpanel-' + t);
     if (p) p.classList.toggle('hidden', t !== tab);
   });
   if (tab === 'catalog') loadCatalog();
   else if (tab === 'history') loadTxHistory();
+  else if (tab === 'levels') renderLevelRewards();
 }
 
 async function loadCatalog() {
@@ -1282,8 +1404,8 @@ async function loadCatalog() {
     card.className = 'rounded-xl p-5 flex flex-col gap-2';
     card.style = 'background:#111128;border:1px solid rgba(99,102,241,0.15)';
     const stockBadge = item.stock !== null
-      ? `<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.2)">剩餘 ${item.stock}</span>`
-      : `<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.2)">無限量</span>`;
+      ? `<span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.2)">剩餘 ${item.stock}</span>`
+      : `<span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0" style="background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.2)">無限量</span>`;
     card.innerHTML = `
       <div class="flex items-start justify-between gap-2">
         <div>
@@ -1309,7 +1431,7 @@ async function loadTxHistory() {
   const empty = document.getElementById('history-empty');
   if (rows.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  const txLabel = { earn_points_levelup:'升級獎勵', earn_hours_levelup:'升級獎勵(時數)', convert_hours_to_points:'時數兌換點數', convert_points_to_hours:'點數兌換時數', redeem_catalog:'商品兌換', admin_grant_points:'管理員補發', admin_grant_hours:'管理員補發(時數)' };
+  const txLabel = { earn_points_levelup:'升級獎勵', earn_hours_levelup:'升級獎勵(時數)', earn_hours_study:'學習衝刺', convert_hours_to_points:'時數兌換點數', convert_points_to_hours:'點數兌換時數', redeem_catalog:'商品兌換', reset_level:'等級重置', admin_grant_points:'管理員補發', admin_grant_hours:'管理員補發(時數)' };
   list.innerHTML = rows.map(r => {
     const pts = r.points_delta != null && r.points_delta !== 0 ? `<span class="${r.points_delta > 0 ? 'text-yellow-400' : 'text-red-400'}">${r.points_delta > 0 ? '+' : ''}${r.points_delta} 點</span>` : '';
     const hrs = r.hours_delta != null && r.hours_delta !== 0 ? `<span class="${r.hours_delta > 0 ? 'text-indigo-400' : 'text-red-400'}">${r.hours_delta > 0 ? '+' : ''}${r.hours_delta} 時</span>` : '';
@@ -1355,9 +1477,17 @@ async function redeemItem(itemId, itemName, cost) {
   try {
     const res = await api('POST', '/rewards/redeem', { catalog_item_id: itemId });
     if (!res) return;
-    showToast(`兌換成功！已消耗 ${res.points_spent} 點`);
     document.getElementById('rew-points').textContent = res.kgi_points;
     document.getElementById('rew-hours').textContent = res.learning_hours.toFixed(2);
+    if (res.level_reset) {
+      showToast('等級已重置！XP 歸零，從第一階重新出發 🔄', 4000);
+      showMascot('重置成功！從頭練等，加油！');
+      // Refresh XP display to level 1
+      const lvlInfo = await api('GET', '/me/level');
+      if (lvlInfo) updateXpDisplay(lvlInfo);
+    } else {
+      showToast(`兌換成功！已消耗 ${res.points_spent} 點`);
+    }
     loadCatalog();
   } catch (e) { showToast(e.message, 4000); }
 }
@@ -1382,6 +1512,12 @@ async function claimLevelReward(rewardType) {
     const label = rewardType === 'kgi_points' ? `${res.amount} KGI 點數` : `${res.amount} 學習時數`;
     showToast(`已領取升等獎勵：${label}！`, 4000);
     showMascot(`升等獎勵已入帳：${label} 🎁`);
+    // Update wallet display and refresh level rewards panel if open
+    if (res.kgi_points != null) document.getElementById('rew-points').textContent = res.kgi_points;
+    if (res.learning_hours != null) document.getElementById('rew-hours').textContent = parseFloat(res.learning_hours).toFixed(2);
+    if (!state.claimedLevels) state.claimedLevels = [];
+    state.claimedLevels.push(level);
+    if (state.rewardsTab === 'levels') renderLevelRewards();
   } catch (e) {
     document.getElementById('level-reward-modal').classList.add('hidden');
     showToast(e.message, 4000);

@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS reward_catalog (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    category ENUM('gift','voucher','performance_hours','other') NOT NULL DEFAULT 'gift',
+    category ENUM('gift','voucher','performance_hours','other','reset_level') NOT NULL DEFAULT 'gift',
     points_cost INT NOT NULL,
     stock INT DEFAULT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,

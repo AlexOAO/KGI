@@ -133,14 +133,18 @@ def redeem_catalog_item(user_id: int, catalog_item_id: int) -> dict:
                     "UPDATE users SET perf_hours = perf_hours + %s WHERE id=%s",
                     (perf_hrs, user_id),
                 )
+            # If reset_level category, wipe XP and level-up reward history
+            if item["category"] == "reset_level":
+                cur.execute("UPDATE users SET total_xp = 0 WHERE id=%s", (user_id,))
+                cur.execute("DELETE FROM level_up_rewards WHERE user_id=%s", (user_id,))
 
             cur.execute(
-                "SELECT kgi_points, learning_hours, perf_hours FROM users WHERE id=%s",
+                "SELECT kgi_points, learning_hours, perf_hours, total_xp FROM users WHERE id=%s",
                 (user_id,),
             )
             wallet = cur.fetchone()
         conn.commit()
-        return {
+        result = {
             "ok": True,
             "item_name": item["name"],
             "points_spent": item["points_cost"],
@@ -148,6 +152,10 @@ def redeem_catalog_item(user_id: int, catalog_item_id: int) -> dict:
             "learning_hours": float(wallet["learning_hours"]),
             "perf_hours": float(wallet["perf_hours"]),
         }
+        if item["category"] == "reset_level":
+            result["level_reset"] = True
+            result["total_xp"] = wallet["total_xp"]
+        return result
     finally:
         conn.close()
 

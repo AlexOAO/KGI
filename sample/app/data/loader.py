@@ -100,6 +100,7 @@ def seed_catalog_items():
                 ("考績時數 0.5 小時", "兌換後計入個人年度考績學習時數 0.5 小時", "performance_hours", 200, None),
                 ("考績時數 1 小時", "兌換後計入個人年度考績學習時數 1 小時", "performance_hours", 350, None),
                 ("考績時數 2 小時", "兌換後計入個人年度考績學習時數 2 小時", "performance_hours", 600, None),
+                ("等級重置券", "將你的 XP 歸零，從頭練等。升級獎勵記錄同步清除，可重新領取所有等級獎勵。", "reset_level", 0, None),
             ]
             for name, desc, cat, cost, stock in items:
                 cur.execute(
