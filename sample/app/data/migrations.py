@@ -26,6 +26,13 @@ def run_migrations():
             if cur.fetchone()["cnt"] == 0:
                 cur.execute("ALTER TABLE quiz_sessions ADD COLUMN xp_earned INT NOT NULL DEFAULT 0")
 
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='modules' AND COLUMN_NAME='source_document'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE modules ADD COLUMN source_document VARCHAR(255) DEFAULT NULL")
+
         conn.commit()
         print("Migrations applied.")
     finally:

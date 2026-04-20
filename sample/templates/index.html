@@ -587,8 +587,12 @@ function nextCard() {
 function startTimer() {
   clearInterval(state.timerInterval);
   updateTimerDisplay();
+  state._timerLastTick = performance.now();
   state.timerInterval = setInterval(() => {
-    state.timerRemaining--;
+    const now = performance.now();
+    const elapsed = Math.round((now - state._timerLastTick) / 1000);
+    state._timerLastTick = now;
+    state.timerRemaining = Math.max(0, state.timerRemaining - elapsed);
     updateTimerDisplay();
     if (state.timerRemaining <= 0) {
       clearInterval(state.timerInterval);
@@ -614,6 +618,10 @@ function handleVisibility() {
   if (document.visibilityState === 'hidden') {
     clearInterval(state.timerInterval);
     state.tabSwitchCount++;
+    // fire-and-forget: persist immediately so abandoned sessions still have data
+    if (state.sprintId) {
+      api('POST', '/sprint/tab-switch', { sprint_id: state.sprintId });
+    }
   } else {
     const resume = document.getElementById('reader-resume');
     resume.classList.remove('hidden');

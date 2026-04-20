@@ -27,3 +27,48 @@
 
 1.  **詮釋資料擷取：** 前端必須向後端查詢，不只取得閃卡內容，還要取得父模組的詮釋資料（領域與來源文件）。
 2.  **嚴格的狀態管理：** * 計時器邏輯必須與瀏覽器的 **Visibility API** 綁定
+
+
+# 數據庫設計方案 (Database Design Specification)
+
+此資料庫設計旨在作為內容生成 (P1) 與學習遙測 (P2) 之間的橋樑，展示對資料庫正規化 (Normalization) 與外鍵關聯 (Foreign Keys) 的深度理解。
+
+---
+
+## 1. FlashcardPages (內容片段)
+**用途：** 儲存微模組內的具體教學內容。
+
+| 欄位名稱 (Field) | 類型 (Type) | 說明 (Description) |
+| :--- | :--- | :--- |
+| `page_id` | Primary Key | 唯一識別碼 |
+| `module_id` | Foreign Key | 關聯至 P1 的 MicroModules |
+| `sequence_number` | Integer | 排序序號 (例如：1, 2, 3) |
+| `page_content_json` | JSON / Text | 頁面內容，包含文本與可選圖片路徑 |
+
+---
+
+## 2. SprintSessions (閱讀行為追蹤)
+**用途：** 記錄使用者在閱讀階段的專注度與行為遙測數據。
+
+| 欄位名稱 (Field) | 類型 (Type) | 說明 (Description) |
+| :--- | :--- | :--- |
+| `sprint_id` | Primary Key | 唯一識別碼 |
+| `agent_id` | UUID / INT | 使用者或代理人識別碼 |
+| `module_id` | Foreign Key | 關聯至該學習模組 |
+| `start_timestamp` | DateTime | 階段開始時間 |
+| `end_timestamp` | DateTime | 階段結束時間 |
+| `tab_switch_count` | Integer | 分頁切換次數 (評估專注度指標) |
+| `completion_status` | Enum | 完成狀態 ('finished_early', 'timed_out', 'abandoned') |
+
+---
+
+## 3. LearningJourney_Map (學習歷程對照表)
+**用途：** 此表為「連接組織」，將閱讀階段 (Sprint) 與測試階段 (Quiz) 直接關聯，為 AI 分析提供訓練基礎。
+
+| 欄位名稱 (Field) | 類型 (Type) | 說明 (Description) |
+| :--- | :--- | :--- |
+| `journey_id` | Primary Key | 唯一識別碼 |
+| `sprint_id` | Foreign Key | 關聯至本次 P3 的閱讀 Session |
+| `quiz_session_id` | Foreign Key | 關聯至 P2 的測驗 Session |
+
+---

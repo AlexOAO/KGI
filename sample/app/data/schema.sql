@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS modules (
     id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
     topic_tag VARCHAR(128),
+    source_document VARCHAR(255) DEFAULT NULL,
     duration_seconds INT NOT NULL DEFAULT 420,
     difficulty_level TINYINT NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
