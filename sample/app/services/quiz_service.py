@@ -6,7 +6,8 @@ from app.services.xp_service import compute_xp, update_user_xp, level_for
 
 
 def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers: dict,
-               topic_tag: str = None, first_attempt_map: dict = None):
+               topic_tag: str = None, first_attempt_map: dict = None,
+               session_type: str = 'learn'):
     if first_attempt_map is None:
         first_attempt_map = {}
 
@@ -27,11 +28,14 @@ def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers
 
     score = (correct / len(questions) * 100) if questions else 0
 
-    # Compute and award XP
-    xp_earned = compute_xp(questions, first_attempt_map)
+    # Compute and award XP (tiered by correct count)
+    xp_earned = compute_xp(questions, first_attempt_map, session_type)
     xp_result = update_user_xp(user_id, xp_earned)
 
-    quiz_session_id = save_quiz_session(sprint_id, user_id, module_id, score, responses, xp_earned=xp_earned)
+    quiz_session_id = save_quiz_session(
+        sprint_id, user_id, module_id, score, responses,
+        xp_earned=xp_earned, session_type=session_type,
+    )
 
     # Update SM-2 schedule using first-attempt quality
     if topic_tag:
@@ -56,6 +60,7 @@ def grade_quiz(user_id: int, sprint_id, module_id: int, questions: list, answers
         "level_name": xp_result["new_level"],
         "progress_pct": level_info["progress_pct"],
         "level_index": level_info["level_index"],
+        "new_level_index": xp_result["new_level_index"],
     }
 
 

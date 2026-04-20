@@ -33,20 +33,20 @@ def level_for(total_xp: int) -> dict:
     }
 
 
-def compute_xp(questions: list, first_attempt_map: dict) -> int:
-    xp = 0
-    all_correct = True
-    for q in questions:
-        qid = str(q["id"])
-        correct_first = first_attempt_map.get(qid, False)
-        if correct_first:
-            xp += 15
-        else:
-            xp += 10
-            all_correct = False
-    if all_correct and questions:
-        xp += 25
-    return xp
+# XP tiers by first-attempt correct count (index = correct count, max 5)
+QUIZ_XP_TIERS  = [20, 30, 45, 65, 90, 125]   # learn session
+REVIEW_XP_TIERS = [10, 15, 22, 32, 45, 60]   # review/recall session
+
+
+def compute_xp(questions: list, first_attempt_map: dict,
+               session_type: str = 'learn') -> int:
+    correct_count = sum(
+        1 for q in questions
+        if first_attempt_map.get(str(q["id"]), False)
+    )
+    correct_count = min(correct_count, len(QUIZ_XP_TIERS) - 1)
+    tiers = REVIEW_XP_TIERS if session_type == 'review' else QUIZ_XP_TIERS
+    return tiers[correct_count]
 
 
 def update_user_xp(user_id: int, delta: int) -> dict:
@@ -67,6 +67,7 @@ def update_user_xp(user_id: int, delta: int) -> dict:
             "old_level": old_level["name"],
             "new_level": new_level["name"],
             "leveled_up": old_level["name"] != new_level["name"],
+            "new_level_index": new_level["level_index"],
         }
     finally:
         conn.close()

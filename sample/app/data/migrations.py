@@ -33,6 +33,46 @@ def run_migrations():
             if cur.fetchone()["cnt"] == 0:
                 cur.execute("ALTER TABLE modules ADD COLUMN source_document VARCHAR(255) DEFAULT NULL")
 
+            # quiz_sessions.session_type
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='quiz_sessions' AND COLUMN_NAME='session_type'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE quiz_sessions ADD COLUMN session_type ENUM('learn','review') NOT NULL DEFAULT 'learn'")
+
+            # users: kgi_points
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='kgi_points'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE users ADD COLUMN kgi_points INT NOT NULL DEFAULT 0")
+
+            # users: learning_hours
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='learning_hours'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE users ADD COLUMN learning_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00")
+
+            # users: cumulative_learn_seconds
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='cumulative_learn_seconds'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE users ADD COLUMN cumulative_learn_seconds INT NOT NULL DEFAULT 0")
+
+            # users: perf_hours
+            cur.execute(
+                "SELECT COUNT(*) as cnt FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='perf_hours'"
+            )
+            if cur.fetchone()["cnt"] == 0:
+                cur.execute("ALTER TABLE users ADD COLUMN perf_hours DECIMAL(10,2) NOT NULL DEFAULT 0.00")
+
         conn.commit()
         print("Migrations applied.")
     finally:

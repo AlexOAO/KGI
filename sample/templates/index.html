@@ -112,6 +112,7 @@
     <button onclick="showScreen('modules')" class="text-sm px-3 py-1.5 rounded-lg text-gray-300 hover:bg-indigo-900/40 hover:text-indigo-300 transition-colors">模組</button>
     <button onclick="showScreen('dashboard')" class="text-sm px-3 py-1.5 rounded-lg text-gray-300 hover:bg-indigo-900/40 hover:text-indigo-300 transition-colors">儀表板</button>
     <button onclick="showScreen('compliance')" class="text-sm px-3 py-1.5 rounded-lg text-gray-300 hover:bg-indigo-900/40 hover:text-indigo-300 transition-colors">法遵搜尋</button>
+    <button onclick="showScreen('rewards')" class="text-sm px-3 py-1.5 rounded-lg text-gray-300 hover:bg-yellow-900/40 hover:text-yellow-300 transition-colors">獎勵</button>
     <button onclick="doLogout()" class="text-sm px-3 py-1.5 rounded-lg text-red-400 hover:bg-red-900/30 transition-colors">登出</button>
   </div>
 </nav>
@@ -396,6 +397,71 @@
   <div id="comp-pagination" class="flex gap-2 mt-4 justify-center"></div>
 </div>
 
+<!-- ===== SCREEN: REWARDS ===== -->
+<div id="screen-rewards" class="screen max-w-3xl mx-auto px-4 py-8">
+  <h2 class="text-2xl font-bold mb-6">獎勵中心</h2>
+
+  <!-- Wallet summary -->
+  <div id="rewards-wallet" class="grid grid-cols-2 gap-4 mb-6">
+    <div class="rounded-xl p-5 text-center" style="background:linear-gradient(145deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04));border:1px solid rgba(245,158,11,0.2)">
+      <div id="rew-points" class="text-3xl font-bold" style="color:#fbbf24">0</div>
+      <div class="text-xs text-gray-400 mt-1">KGI 點數</div>
+    </div>
+    <div class="rounded-xl p-5 text-center" style="background:linear-gradient(145deg,rgba(99,102,241,0.12),rgba(99,102,241,0.04));border:1px solid rgba(99,102,241,0.2)">
+      <div id="rew-hours" class="text-3xl font-bold" style="color:#818cf8">0</div>
+      <div class="text-xs text-gray-400 mt-1">學習時數</div>
+      <div id="rew-convertible" class="text-xs text-gray-500 mt-1">累積學習 0 小時</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="flex gap-1 border-b border-gray-700 mb-5">
+    <button id="rtab-exchange" onclick="setRewardsTab('exchange')" class="rew-tab px-4 py-2 text-sm border-b-2 border-indigo-500 text-indigo-400">兌換</button>
+    <button id="rtab-catalog" onclick="setRewardsTab('catalog')" class="rew-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">商品目錄</button>
+    <button id="rtab-history" onclick="setRewardsTab('history')" class="rew-tab px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">交易記錄</button>
+  </div>
+
+  <!-- Tab: Exchange -->
+  <div id="rpanel-exchange">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Hours → Points -->
+      <div class="rounded-xl p-5" style="background:#111128;border:1px solid rgba(99,102,241,0.15)">
+        <h4 class="font-semibold text-sm mb-1 text-indigo-300">學習時數 → KGI 點數</h4>
+        <p class="text-xs text-gray-400 mb-4">1 小時 = 50 點</p>
+        <input id="ex-hours-in" type="number" min="0.1" step="0.1" placeholder="輸入時數（如 1.5）"
+               class="w-full px-3 py-2 rounded-lg text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+               style="background:#1a1a35;border:1px solid rgba(99,102,241,0.25);color:#f1f5f9">
+        <button onclick="exchangeHoursToPoints()"
+                class="w-full py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">兌換點數</button>
+      </div>
+      <!-- Points → Hours -->
+      <div class="rounded-xl p-5" style="background:#111128;border:1px solid rgba(99,102,241,0.15)">
+        <h4 class="font-semibold text-sm mb-1 text-yellow-300">KGI 點數 → 學習時數</h4>
+        <p class="text-xs text-gray-400 mb-4">100 點 = 1 小時</p>
+        <input id="ex-pts-in" type="number" min="1" step="1" placeholder="輸入點數（如 100）"
+               class="w-full px-3 py-2 rounded-lg text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-yellow-500"
+               style="background:#1a1a35;border:1px solid rgba(245,158,11,0.25);color:#f1f5f9">
+        <button onclick="exchangePointsToHours()"
+                class="w-full py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                style="background:linear-gradient(135deg,#d97706,#f59e0b);color:#0d0d1a">兌換時數</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab: Catalog -->
+  <div id="rpanel-catalog" class="hidden">
+    <div id="catalog-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    <p id="catalog-empty" class="hidden text-center text-gray-500 text-sm py-8">目前無可兌換商品</p>
+  </div>
+
+  <!-- Tab: History -->
+  <div id="rpanel-history" class="hidden">
+    <div id="history-list" class="space-y-2 text-sm"></div>
+    <p id="history-empty" class="hidden text-center text-gray-500 text-sm py-8">尚無交易記錄</p>
+  </div>
+</div>
+
 <script>
 // ==================== STATE ====================
 const state = {
@@ -413,6 +479,9 @@ const state = {
   correctAnswers: {},
   wrongQuestions: [],
   consecutiveCorrect: 0,
+  pendingRewardLevel: null,
+  pendingRewardOptions: null,
+  rewardsTab: 'exchange',
   compTab: 'penalties',
   compPage: 1,
   compFiltersLoaded: false,
@@ -425,6 +494,7 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
   if (name === 'dashboard') loadDashboard();
   if (name === 'compliance') loadComplianceFilters();
+  if (name === 'rewards') loadRewards();
 }
 
 function showToast(msg, duration = 3000) {
@@ -785,7 +855,13 @@ async function submitQuiz() {
   document.getElementById('quiz-form').classList.add('hidden');
   document.getElementById('quiz-result').classList.remove('hidden');
   showXpReward(data);
-  if (!data.leveled_up) showMascot(randMsg(MASCOT_MSGS.done));
+  if (!data.leveled_up) {
+    showMascot(randMsg(MASCOT_MSGS.done));
+  } else if (data.level_reward_options) {
+    state.pendingRewardLevel = data.new_level_index;
+    state.pendingRewardOptions = data.level_reward_options;
+    setTimeout(() => showLevelRewardModal(data.level_reward_options, data.new_level_index, data.level_name), 1800);
+  }
 }
 
 function toggleReviewPanel() {
@@ -1166,6 +1242,152 @@ function updateBuddyImage(cardIndex) {
   }, 250);
 }
 
+// ==================== REWARDS SCREEN ====================
+async function loadRewards() {
+  const wallet = await api('GET', '/rewards/wallet');
+  if (!wallet) return;
+  document.getElementById('rew-points').textContent = wallet.kgi_points;
+  document.getElementById('rew-hours').textContent = wallet.learning_hours.toFixed(2);
+  document.getElementById('rew-convertible').textContent = `累積學習 ${wallet.convertible_hours} 小時`;
+  if (state.rewardsTab === 'catalog') loadCatalog();
+  else if (state.rewardsTab === 'history') loadTxHistory();
+}
+
+function setRewardsTab(tab) {
+  state.rewardsTab = tab;
+  document.querySelectorAll('.rew-tab').forEach(el => {
+    el.classList.remove('border-indigo-500','text-indigo-400');
+    el.classList.add('border-transparent','text-gray-400');
+  });
+  const active = document.getElementById('rtab-' + tab);
+  if (active) { active.classList.add('border-indigo-500','text-indigo-400'); active.classList.remove('border-transparent','text-gray-400'); }
+  ['exchange','catalog','history'].forEach(t => {
+    const p = document.getElementById('rpanel-' + t);
+    if (p) p.classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'catalog') loadCatalog();
+  else if (tab === 'history') loadTxHistory();
+}
+
+async function loadCatalog() {
+  const items = await api('GET', '/rewards/catalog');
+  if (!items) return;
+  const grid = document.getElementById('catalog-grid');
+  const empty = document.getElementById('catalog-empty');
+  grid.innerHTML = '';
+  if (items.length === 0) { empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'rounded-xl p-5 flex flex-col gap-2';
+    card.style = 'background:#111128;border:1px solid rgba(99,102,241,0.15)';
+    const stockBadge = item.stock !== null
+      ? `<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.2)">剩餘 ${item.stock}</span>`
+      : `<span class="text-xs px-2 py-0.5 rounded-full" style="background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.2)">無限量</span>`;
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <div class="font-semibold text-sm text-gray-100">${item.name}</div>
+          <div class="text-xs text-gray-500 mt-0.5">${item.description || ''}</div>
+        </div>
+        ${stockBadge}
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-lg font-bold text-yellow-400">${item.points_cost} 點</span>
+        <button onclick="redeemItem(${item.id}, '${item.name.replace(/'/g,"\\'")}', ${item.points_cost})"
+                class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+                style="background:linear-gradient(135deg,#d97706,#f59e0b);color:#0d0d1a">兌換</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+async function loadTxHistory() {
+  const rows = await api('GET', '/rewards/history');
+  if (!rows) return;
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  if (rows.length === 0) { list.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  const txLabel = { earn_points_levelup:'升級獎勵', earn_hours_levelup:'升級獎勵(時數)', convert_hours_to_points:'時數兌換點數', convert_points_to_hours:'點數兌換時數', redeem_catalog:'商品兌換', admin_grant_points:'管理員補發', admin_grant_hours:'管理員補發(時數)' };
+  list.innerHTML = rows.map(r => {
+    const pts = r.points_delta != null && r.points_delta !== 0 ? `<span class="${r.points_delta > 0 ? 'text-yellow-400' : 'text-red-400'}">${r.points_delta > 0 ? '+' : ''}${r.points_delta} 點</span>` : '';
+    const hrs = r.hours_delta != null && r.hours_delta !== 0 ? `<span class="${r.hours_delta > 0 ? 'text-indigo-400' : 'text-red-400'}">${r.hours_delta > 0 ? '+' : ''}${r.hours_delta} 時</span>` : '';
+    const dt = r.created_at ? r.created_at.substring(0, 10) : '';
+    return `<div class="flex items-center justify-between py-2 border-b border-gray-800/60">
+      <div>
+        <div class="text-sm text-gray-200">${txLabel[r.txn_type] || r.txn_type}${r.item_name ? ' · ' + r.item_name : ''}</div>
+        <div class="text-xs text-gray-500">${r.note || ''} &nbsp;${dt}</div>
+      </div>
+      <div class="text-right flex flex-col items-end gap-0.5">${pts}${hrs}</div>
+    </div>`;
+  }).join('');
+}
+
+async function exchangeHoursToPoints() {
+  const val = parseFloat(document.getElementById('ex-hours-in').value);
+  if (!val || val <= 0) { showToast('請輸入有效時數'); return; }
+  try {
+    const res = await api('POST', '/rewards/convert', { direction: 'hours_to_points', amount: val });
+    if (!res) return;
+    showToast(`兌換成功！獲得 ${res.points_earned} 點`);
+    document.getElementById('ex-hours-in').value = '';
+    document.getElementById('rew-points').textContent = res.kgi_points;
+    document.getElementById('rew-hours').textContent = res.learning_hours.toFixed(2);
+  } catch (e) { showToast(e.message, 4000); }
+}
+
+async function exchangePointsToHours() {
+  const val = parseInt(document.getElementById('ex-pts-in').value);
+  if (!val || val <= 0) { showToast('請輸入有效點數'); return; }
+  try {
+    const res = await api('POST', '/rewards/convert', { direction: 'points_to_hours', amount: val });
+    if (!res) return;
+    showToast(`兌換成功！獲得 ${res.hours_earned} 小時`);
+    document.getElementById('ex-pts-in').value = '';
+    document.getElementById('rew-points').textContent = res.kgi_points;
+    document.getElementById('rew-hours').textContent = res.learning_hours.toFixed(2);
+  } catch (e) { showToast(e.message, 4000); }
+}
+
+async function redeemItem(itemId, itemName, cost) {
+  if (!confirm(`確認兌換「${itemName}」（${cost} 點）？`)) return;
+  try {
+    const res = await api('POST', '/rewards/redeem', { catalog_item_id: itemId });
+    if (!res) return;
+    showToast(`兌換成功！已消耗 ${res.points_spent} 點`);
+    document.getElementById('rew-points').textContent = res.kgi_points;
+    document.getElementById('rew-hours').textContent = res.learning_hours.toFixed(2);
+    loadCatalog();
+  } catch (e) { showToast(e.message, 4000); }
+}
+
+// ==================== LEVEL-UP REWARD MODAL ====================
+function showLevelRewardModal(options, levelIndex, levelName) {
+  document.getElementById('lrm-level-name').textContent = `你已晉升至 ${levelName}`;
+  document.getElementById('lrm-pts-amount').textContent = options.kgi_points;
+  document.getElementById('lrm-hrs-amount').textContent = options.learning_hours;
+  document.getElementById('level-reward-modal').classList.remove('hidden');
+}
+
+async function claimLevelReward(rewardType) {
+  const level = state.pendingRewardLevel;
+  if (!level) return;
+  try {
+    const res = await api('POST', '/rewards/claim-level', { level_reached: level, reward_type: rewardType });
+    if (!res) return;
+    document.getElementById('level-reward-modal').classList.add('hidden');
+    state.pendingRewardLevel = null;
+    state.pendingRewardOptions = null;
+    const label = rewardType === 'kgi_points' ? `${res.amount} KGI 點數` : `${res.amount} 學習時數`;
+    showToast(`已領取升等獎勵：${label}！`, 4000);
+    showMascot(`升等獎勵已入帳：${label} 🎁`);
+  } catch (e) {
+    document.getElementById('level-reward-modal').classList.add('hidden');
+    showToast(e.message, 4000);
+  }
+}
+
 // Enter key for login and compliance search
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
@@ -1251,6 +1473,31 @@ document.getElementById('detail-modal').addEventListener('click', e => {
         <line x1="23.5" y1="36" x2="28.5" y2="36" stroke-width="1.2" opacity="0.55"/>
       </g>
     </svg>
+  </div>
+</div>
+
+<!-- Level-up Reward Modal -->
+<div id="level-reward-modal" class="hidden fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
+  <div class="rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl" style="background:linear-gradient(145deg,#111128,#0d0d1f);border:1px solid rgba(139,92,246,0.3)">
+    <div class="text-4xl mb-3">🎉</div>
+    <h3 class="text-xl font-bold mb-1 text-purple-300">恭喜晉升！</h3>
+    <p id="lrm-level-name" class="text-sm text-gray-400 mb-5"></p>
+    <p class="text-sm font-medium text-gray-300 mb-4">選擇你的升等獎勵（二擇一）</p>
+    <div class="grid grid-cols-2 gap-3 mb-6">
+      <button id="lrm-btn-pts" onclick="claimLevelReward('kgi_points')"
+              class="rounded-xl p-4 border transition-all hover:scale-105 text-left"
+              style="background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3)">
+        <div class="text-2xl font-bold text-yellow-400" id="lrm-pts-amount">0</div>
+        <div class="text-xs text-gray-400 mt-0.5">KGI 點數</div>
+      </button>
+      <button id="lrm-btn-hrs" onclick="claimLevelReward('learning_hours')"
+              class="rounded-xl p-4 border transition-all hover:scale-105 text-left"
+              style="background:rgba(99,102,241,0.08);border-color:rgba(99,102,241,0.3)">
+        <div class="text-2xl font-bold text-indigo-400" id="lrm-hrs-amount">0</div>
+        <div class="text-xs text-gray-400 mt-0.5">學習時數</div>
+      </button>
+    </div>
+    <p class="text-xs text-gray-600">每個等級只能領取一次，請謹慎選擇</p>
   </div>
 </div>
 

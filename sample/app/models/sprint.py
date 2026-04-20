@@ -38,10 +38,35 @@ def end_sprint(sprint_id: int, tab_switch_count: int, completion_status: str):
     conn = get_conn()
     try:
         with conn.cursor() as cur:
+            now = datetime.utcnow()
             cur.execute(
                 "UPDATE sprint_sessions SET end_ts=%s, tab_switch_count=%s, completion_status=%s WHERE sprint_id=%s",
-                (datetime.utcnow(), tab_switch_count, completion_status, sprint_id),
+                (now, tab_switch_count, completion_status, sprint_id),
             )
+            # Accumulate learn seconds into user's cumulative total
+            cur.execute(
+                "SELECT agent_id, start_ts FROM sprint_sessions WHERE sprint_id=%s",
+                (sprint_id,),
+            )
+            row = cur.fetchone()
+            if row and row["start_ts"]:
+                elapsed = int((now - row["start_ts"]).total_seconds())
+                if elapsed > 0:
+                    cur.execute(
+                        "UPDATE users SET cumulative_learn_seconds = cumulative_learn_seconds + %s WHERE id=%s",
+                        (elapsed, row["agent_id"]),
+                    )
+                    learn_hrs = round(elapsed / 3600, 2)
+                    if learn_hrs > 0:
+                        cur.execute(
+                            "UPDATE users SET learning_hours = learning_hours + %s WHERE id=%s",
+                            (learn_hrs, row["agent_id"]),
+                        )
+                        cur.execute(
+                            "INSERT INTO reward_transactions (user_id, txn_type, hours_delta, note) "
+                            "VALUES (%s,'earn_hours_study',%s,%s)",
+                            (row["agent_id"], learn_hrs, f"完成學習衝刺（{elapsed} 秒）"),
+                        )
         conn.commit()
     finally:
         conn.close()

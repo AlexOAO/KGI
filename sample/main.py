@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse
 from fastapi import Request
 
 from app.core.database import get_conn
-from app.data.loader import load_compliance_data, seed_demo_data
+from app.data.loader import load_compliance_data, seed_demo_data, seed_catalog_items
 from app.data.migrations import run_migrations
 
 
@@ -54,6 +54,9 @@ async def lifespan(app: FastAPI):
     if is_table_empty("modules"):
         print("Seeding demo data...")
         seed_demo_data()
+    if is_table_empty("reward_catalog"):
+        print("Seeding reward catalog...")
+        seed_catalog_items()
     print("Ready.")
     yield
 
@@ -75,6 +78,7 @@ from app.api.sprint import router as sprint_router
 from app.api.quiz import router as quiz_router
 from app.api.dashboard import router as dashboard_router
 from app.api.compliance import router as compliance_router
+from app.api.rewards import router as rewards_router
 
 app.include_router(auth_router, prefix="/api")
 app.include_router(modules_router, prefix="/api")
@@ -82,6 +86,7 @@ app.include_router(sprint_router, prefix="/api")
 app.include_router(quiz_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(compliance_router, prefix="/api")
+app.include_router(rewards_router, prefix="/api")
 
 
 @app.get("/", response_class=HTMLResponse)

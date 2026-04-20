@@ -86,6 +86,33 @@ def load_compliance_data():
         conn.close()
 
 
+def seed_catalog_items():
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            items = [
+                ("全家便利商店禮券 $100", "全家超商電子禮券，可於全台全家門市使用", "voucher", 500, None),
+                ("全家便利商店禮券 $200", "全家超商電子禮券，可於全台全家門市使用", "voucher", 900, None),
+                ("星巴克咖啡券", "星巴克中杯拿鐵兌換券，限台灣地區門市使用", "voucher", 1000, 20),
+                ("法遵書籤組（3入）", "KGI 法遵微學習紀念書籤，精美禮盒裝", "gift", 300, 100),
+                ("法遵馬克杯", "KGI 限定馬克杯，陶瓷質地附禮盒", "gift", 800, 30),
+                ("KGI 法遵徽章", "精緻琺瑯法遵徽章，限定款", "other", 150, 200),
+                ("考績時數 0.5 小時", "兌換後計入個人年度考績學習時數 0.5 小時", "performance_hours", 200, None),
+                ("考績時數 1 小時", "兌換後計入個人年度考績學習時數 1 小時", "performance_hours", 350, None),
+                ("考績時數 2 小時", "兌換後計入個人年度考績學習時數 2 小時", "performance_hours", 600, None),
+            ]
+            for name, desc, cat, cost, stock in items:
+                cur.execute(
+                    "INSERT INTO reward_catalog (name, description, category, points_cost, stock) "
+                    "VALUES (%s,%s,%s,%s,%s)",
+                    (name, desc, cat, cost, stock),
+                )
+        conn.commit()
+        print("Reward catalog seeded")
+    finally:
+        conn.close()
+
+
 def seed_demo_data():
     import bcrypt
     conn = get_conn()

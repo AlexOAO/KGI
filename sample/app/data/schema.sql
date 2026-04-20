@@ -93,6 +93,47 @@ CREATE TABLE IF NOT EXISTS review_schedule (
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Reward & Exchange Tables
+
+CREATE TABLE IF NOT EXISTS level_up_rewards (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    level_reached TINYINT NOT NULL,
+    reward_type ENUM('kgi_points','learning_hours') NOT NULL,
+    reward_amount DECIMAL(10,2) NOT NULL,
+    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_user_level (user_id, level_reached),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS reward_catalog (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category ENUM('gift','voucher','performance_hours','other') NOT NULL DEFAULT 'gift',
+    points_cost INT NOT NULL,
+    stock INT DEFAULT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS reward_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    txn_type ENUM(
+        'earn_points_levelup','earn_hours_levelup',
+        'convert_hours_to_points','convert_points_to_hours',
+        'redeem_catalog','admin_grant_points','admin_grant_hours'
+    ) NOT NULL,
+    points_delta INT NOT NULL DEFAULT 0,
+    hours_delta DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    catalog_item_id INT DEFAULT NULL,
+    note VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (catalog_item_id) REFERENCES reward_catalog(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Compliance Tables
 CREATE TABLE IF NOT EXISTS comp_penalties (
     id INT AUTO_INCREMENT PRIMARY KEY,

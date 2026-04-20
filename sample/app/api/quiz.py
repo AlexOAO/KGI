@@ -5,6 +5,7 @@ from app.api.auth import get_current_user
 from app.models.quiz import get_questions
 from app.services.quiz_service import grade_quiz
 from app.services.xp_service import level_for
+from app.services.reward_service import get_level_reward_options
 from app.models.module import get_module
 
 router = APIRouter(tags=["quiz"])
@@ -21,6 +22,7 @@ class SubmitQuizRequest(BaseModel):
     module_id: int
     answers: Dict[str, str]
     first_attempt_map: Dict[str, bool] = {}
+    session_type: str = 'learn'
 
 
 @router.post("/quiz/submit")
@@ -35,8 +37,15 @@ def api_submit_quiz(req: SubmitQuizRequest, user=Depends(get_current_user)):
     result = grade_quiz(
         user["user_id"], req.sprint_id, req.module_id, questions, req.answers, topic_tag,
         first_attempt_map=req.first_attempt_map,
+        session_type=req.session_type,
     )
     level_info = level_for(result["total_xp"])
+
+    # Include level-up reward options if user just leveled up
+    level_reward_options = None
+    if result["leveled_up"]:
+        level_reward_options = get_level_reward_options(result["new_level_index"])
+
     return {
         "score": result["score"],
         "correct": result["correct"],
@@ -49,4 +58,6 @@ def api_submit_quiz(req: SubmitQuizRequest, user=Depends(get_current_user)):
         "progress_pct": result["progress_pct"],
         "next_xp": level_info["next_xp"],
         "level_index": level_info["level_index"],
+        "new_level_index": result["new_level_index"],
+        "level_reward_options": level_reward_options,
     }
